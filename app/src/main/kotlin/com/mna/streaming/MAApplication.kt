@@ -38,7 +38,7 @@ class MAApplication : Application() {
         sessionManager   = SessionManager(applicationContext)
         localProfileStore = LocalProfileStore(applicationContext)
         apiClient        = ApiClient(sessionManager)
-        authRepository   = AuthRepository(apiClient, sessionManager)
+        authRepository   = AuthRepository(apiClient, sessionManager, localProfileStore)
         movieRepository  = MovieRepository(apiClient, localProfileStore)
     }
 }
