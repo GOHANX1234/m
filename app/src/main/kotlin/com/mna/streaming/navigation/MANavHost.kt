@@ -106,8 +106,11 @@ fun MANavHost() {
         // ── Profile ───────────────────────────────────────────────────────────
         composable(Screen.Profile.route) {
             ProfileScreen(
-                onSignOut   = { authViewModel.signOut() },
-                onBackClick = { navController.popBackStack() }
+                onSignOut    = { authViewModel.signOut() },
+                onBackClick  = { navController.popBackStack() },
+                onMovieClick = { movieId ->
+                    navController.navigate(Screen.Detail.createRoute(movieId))
+                }
             )
         }
 
