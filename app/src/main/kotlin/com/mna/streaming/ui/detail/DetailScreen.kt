@@ -211,6 +211,7 @@ fun DetailScreen(
                         // ── Play Now button ─────────────────────────────────
                         Button(
                             onClick  = {
+                                detailViewModel.recordWatched()
                                 val intent = Intent(context, PlayerActivity::class.java).apply {
                                     putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
                                     putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
