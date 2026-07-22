@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background circle -->
+    <path
+        android:fillColor="#E50914"
+        android:pathData="M54,54m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
+    <!-- M letter -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,36L30,36L38,52L46,36L54,36L54,72L46,72L46,54L38,66L30,54L30,72L22,72Z" />
+    <!-- & symbol -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,56C60,54 58,51 58,48C58,43 62,39 67,39C72,39 76,43 76,48C76,51 74,54 71,56L76,63C77,61 78,59 78,56L84,56C84,60 82,64 79,67L84,73L77,73L75,71C73,72 70,73 67,73C60,73 55,68 55,62C55,59 57,57 60,55L62,56ZM67,67C69,67 71,66 72,65L65,58C63,59 62,61 62,62C62,65 64,67 67,67ZM67,45C65,45 64,46 64,48C64,50 65,52 67,53L70,50C71,49 72,48 72,47C72,46 70,45 67,45Z" />
+    <!-- A letter -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M88,36L96,36L108,72L100,72L98,64L86,64L84,72L76,72ZM92,44L88,58L96,58Z" />
+</vector>

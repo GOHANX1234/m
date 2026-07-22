@@ -1,0 +1,157 @@
+workflows:
+
+  # ── Debug build (every push to develop / feature branches) ───────────────
+  android-debug:
+    name: M&A – Debug Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+
+    environment:
+      # No dashboard signing identities or env-var groups needed.
+      # All credentials are defined inline below.
+      java: 17
+      vars:
+        PACKAGE_NAME: "com.mna.streaming"
+
+        # ── Keystore (PKCS12) ─────────────────────────────────────────────
+        # Generated with OpenSSL; base64-encoded so it travels safely in YAML.
+        # The build script decodes it to keystore/ma_release.p12 before Gradle runs.
+        KEY_ALIAS: "ma_key"
+        KEY_STORE_PASSWORD: "Ma@Streaming2024"
+        KEY_PASSWORD: "Ma@Streaming2024"
+        KEYSTORE_BASE64: "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"
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "develop"
+          include: true
+        - pattern: "feature/*"
+          include: true
+
+    scripts:
+      - name: Decode keystore
+        script: |
+          mkdir -p "$CM_BUILD_DIR/keystore"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$CM_BUILD_DIR/keystore/ma_release.p12"
+
+      - name: Write local.properties
+        script: |
+          # On macOS (CodeMagic mac_mini) the Android SDK lives at a fixed full path.
+          # $ANDROID_SDK_ROOT is set automatically by the CodeMagic runner to that path.
+          # Gradle on Mac requires an absolute path — a relative path or shell variable
+          # inside local.properties will NOT expand and the build will fail.
+          echo "sdk.dir=${ANDROID_SDK_ROOT}" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Download gradle-wrapper.jar
+        script: |
+          mkdir -p "$CM_BUILD_DIR/gradle/wrapper"
+          curl -fL "https://github.com/gradle/gradle/raw/v8.9.0/gradle/wrapper/gradle-wrapper.jar" \
+            -o "$CM_BUILD_DIR/gradle/wrapper/gradle-wrapper.jar"
+
+      - name: Make gradlew executable
+        script: chmod +x "$CM_BUILD_DIR/gradlew"
+
+      - name: Build debug APK
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew assembleDebug \
+            -PKEY_ALIAS="$KEY_ALIAS" \
+            -PKEY_STORE_PASSWORD="$KEY_STORE_PASSWORD" \
+            -PKEY_PASSWORD="$KEY_PASSWORD" \
+            --stacktrace
+
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - fghghif14@gmail.com
+        notify:
+          success: true
+          failure: true
+
+
+  # ── Release build (triggered by vX.Y.Z tags) ────────────────────────────
+  android-release:
+    name: M&A – Release Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      java: 17
+      vars:
+        PACKAGE_NAME: "com.mna.streaming"
+
+        KEY_ALIAS: "ma_key"
+        KEY_STORE_PASSWORD: "Ma@Streaming2024"
+        KEY_PASSWORD: "Ma@Streaming2024"
+        KEYSTORE_BASE64: "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"
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+
+    scripts:
+      - name: Decode keystore
+        script: |
+          mkdir -p "$CM_BUILD_DIR/keystore"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$CM_BUILD_DIR/keystore/ma_release.p12"
+
+      - name: Write local.properties
+        script: |
+          # CodeMagic's mac_mini_m2 runner sets $ANDROID_SDK_ROOT to the full
+          # absolute path of the SDK (e.g. /usr/local/share/android-sdk).
+          # On macOS, local.properties MUST contain the full absolute path —
+          # shell variables are not expanded by Gradle's properties loader.
+          echo "sdk.dir=${ANDROID_SDK_ROOT}" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Download gradle-wrapper.jar
+        script: |
+          mkdir -p "$CM_BUILD_DIR/gradle/wrapper"
+          curl -fL "https://github.com/gradle/gradle/raw/v8.9.0/gradle/wrapper/gradle-wrapper.jar" \
+            -o "$CM_BUILD_DIR/gradle/wrapper/gradle-wrapper.jar"
+
+      - name: Make gradlew executable
+        script: chmod +x "$CM_BUILD_DIR/gradlew"
+
+      - name: Run unit tests
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew test --stacktrace
+
+      - name: Build release AAB
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew bundleRelease \
+            -PKEY_ALIAS="$KEY_ALIAS" \
+            -PKEY_STORE_PASSWORD="$KEY_STORE_PASSWORD" \
+            -PKEY_PASSWORD="$KEY_PASSWORD" \
+            --stacktrace
+
+      - name: Build release APK (side-load)
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew assembleRelease \
+            -PKEY_ALIAS="$KEY_ALIAS" \
+            -PKEY_STORE_PASSWORD="$KEY_STORE_PASSWORD" \
+            -PKEY_PASSWORD="$KEY_PASSWORD" \
+            --stacktrace
+
+    artifacts:
+      - app/build/outputs/bundle/release/*.aab
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/mapping/release/mapping.txt
+
+    publishing:
+      email:
+        recipients:
+          - fghghif14@gmail.com
+        notify:
+          success: true
+          failure: true
