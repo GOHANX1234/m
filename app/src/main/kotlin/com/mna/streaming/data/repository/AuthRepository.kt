@@ -1,6 +1,7 @@
 package com.mna.streaming.data.repository
 
 import com.google.gson.Gson
+import com.mna.streaming.data.LocalProfileStore
 import com.mna.streaming.data.SessionManager
 import com.mna.streaming.network.ApiClient
 import com.mna.streaming.network.models.AuthResult
@@ -24,7 +25,8 @@ import okhttp3.Request
  */
 class AuthRepository(
     private val apiClient: ApiClient,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val localProfileStore: LocalProfileStore
 ) {
 
     private val service = apiClient.authApiService
@@ -193,6 +195,9 @@ class AuthRepository(
         } finally {
             sessionManager.clearSession()
             apiClient.cookieJar.clear()
+            // Wipe local profile data so a subsequent login never sees
+            // a previous user's watch history or watchlist.
+            localProfileStore.clearAll()
         }
     }
 
