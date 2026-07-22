@@ -3,6 +3,7 @@ package com.mna.streaming.ui.profile
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,11 +12,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +42,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// ── Status badge helpers ──────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 private val StatusPending    = Color(0xFFF59E0B)
 private val StatusInProgress = Color(0xFF3B82F6)
@@ -62,11 +64,9 @@ private fun statusLabel(status: String): String = when (status) {
     else          -> status
 }
 
-private fun formatEpochDate(epochMillis: Long): String {
-    return try {
-        SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(epochMillis))
-    } catch (_: Exception) { "" }
-}
+private fun formatEpochDate(epochMillis: Long): String = try {
+    SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(epochMillis))
+} catch (_: Exception) { "" }
 
 // ── Root screen ───────────────────────────────────────────────────────────────
 
@@ -75,6 +75,7 @@ private fun formatEpochDate(epochMillis: Long): String {
 fun ProfileScreen(
     onSignOut: () -> Unit,
     onBackClick: () -> Unit,
+    onMovieClick: (movieId: String) -> Unit,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -103,7 +104,7 @@ fun ProfileScreen(
                     text       = "Profile",
                     color      = Color.White,
                     fontSize   = 18.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -113,31 +114,40 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // ── Profile header ────────────────────────────────────────────────
             ProfileHeader(
-                user          = uiState.user,
-                watchedCount  = uiState.watchHistory.size,
+                user           = uiState.user,
+                watchedCount   = uiState.watchHistory.size,
                 watchlistCount = uiState.watchlist.size
             )
 
-            // ── Tab row ───────────────────────────────────────────────────────
             val tabs = listOf("Watch History", "Watchlist", "Requests", "About")
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor   = MADark,
+                containerColor   = MASurface,
                 contentColor     = MARed,
-                edgePadding      = 0.dp
+                edgePadding      = 0.dp,
+                indicator        = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier  = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                        color     = MARed,
+                        height    = 2.dp
+                    )
+                },
+                divider          = {
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+                }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
-                        selected             = selectedTab == index,
-                        onClick              = { selectedTab = index },
+                        selected               = selectedTab == index,
+                        onClick                = { selectedTab = index },
                         selectedContentColor   = Color.White,
                         unselectedContentColor = MATextSecondary,
+                        modifier               = Modifier.padding(vertical = 2.dp),
                         text = {
                             Text(
                                 text       = title,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = if (selectedTab == index) FontWeight.SemiBold else FontWeight.Normal,
                                 fontSize   = 13.sp
                             )
                         }
@@ -145,15 +155,16 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Tab content ───────────────────────────────────────────────────
             when (selectedTab) {
                 0 -> WatchHistoryTab(
-                    history    = uiState.watchHistory,
-                    isLoading  = uiState.isLoadingHistory
+                    history      = uiState.watchHistory,
+                    isLoading    = uiState.isLoadingHistory,
+                    onMovieClick = onMovieClick
                 )
                 1 -> WatchlistTab(
-                    watchlist  = uiState.watchlist,
-                    isLoading  = uiState.isLoadingWatchlist
+                    watchlist    = uiState.watchlist,
+                    isLoading    = uiState.isLoadingWatchlist,
+                    onMovieClick = onMovieClick
                 )
                 2 -> RequestsTab(
                     uiState         = uiState,
@@ -169,7 +180,6 @@ fun ProfileScreen(
         }
     }
 
-    // ── New request bottom sheet ──────────────────────────────────────────────
     if (showNewRequestSheet) {
         NewRequestSheet(
             isSubmitting = uiState.isSubmitting,
@@ -195,154 +205,134 @@ private fun ProfileHeader(
     watchedCount: Int,
     watchlistCount: Int
 ) {
-    Box(
-        modifier = Modifier
+    Column(
+        modifier            = Modifier
             .fillMaxWidth()
             .background(
                 Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0f to MASurface,
-                        1f to MADark
-                    )
+                    listOf(MASurface, MADark)
                 )
             )
-            .padding(top = 24.dp, bottom = 20.dp),
-        contentAlignment = Alignment.Center
+            .padding(top = 20.dp, bottom = 18.dp, start = 20.dp, end = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Avatar
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(MARed),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text       = user?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                color      = Color.White,
+                fontSize   = 30.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-            // Avatar — first letter of username in a red circle
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(MARed),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text       = user?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                    color      = Color.White,
-                    fontSize   = 34.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+        Spacer(Modifier.height(12.dp))
 
-            Spacer(Modifier.height(14.dp))
-
-            // Username
+        // Name row + admin badge inline
+        Row(
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text(
                 text       = user?.name ?: "",
                 color      = Color.White,
-                fontSize   = 22.sp,
+                fontSize   = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text     = user?.email ?: "",
-                color    = MATextSecondary,
-                fontSize = 14.sp
-            )
-
-            // Admin badge — only shown for admin role
             if (user?.role == "admin") {
-                Spacer(Modifier.height(10.dp))
                 Surface(
-                    shape    = RoundedCornerShape(4.dp),
-                    color    = MARed.copy(alpha = 0.12f),
-                    modifier = Modifier.border(
-                        width  = 1.dp,
-                        color  = MARed.copy(alpha = 0.45f),
-                        shape  = RoundedCornerShape(4.dp)
-                    )
+                    shape  = RoundedCornerShape(4.dp),
+                    color  = MARed.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, MARed.copy(alpha = 0.5f))
                 ) {
                     Text(
                         text       = "Admin",
                         color      = MARed,
-                        fontSize   = 12.sp,
+                        fontSize   = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        modifier   = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
+        }
 
-            Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(3.dp))
 
-            // ── Stats row: Watched | Watchlist ────────────────────────────────
-            Row(
-                modifier              = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Watched stat card
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape    = RoundedCornerShape(10.dp),
-                    color    = MACard
-                ) {
-                    Column(
-                        modifier            = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp, horizontal = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text       = watchedCount.toString(),
-                            color      = Color.White,
-                            fontSize   = 26.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text          = "WATCHED",
-                            color         = MATextSecondary,
-                            fontSize      = 11.sp,
-                            fontWeight    = FontWeight.SemiBold,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
+        Text(
+            text     = user?.email ?: "",
+            color    = MATextSecondary,
+            fontSize = 13.sp
+        )
 
-                // Watchlist stat card
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape    = RoundedCornerShape(10.dp),
-                    color    = MACard
-                ) {
-                    Column(
-                        modifier            = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp, horizontal = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        if (watchlistCount > 0) {
-                            Text(
-                                text       = watchlistCount.toString(),
-                                color      = Color.White,
-                                fontSize   = 26.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        } else {
-                            Icon(
-                                imageVector        = Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                tint               = MATextSecondary,
-                                modifier           = Modifier.size(26.dp)
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text          = "WATCHLIST",
-                            color         = MATextSecondary,
-                            fontSize      = 11.sp,
-                            fontWeight    = FontWeight.SemiBold,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
+        Spacer(Modifier.height(18.dp))
+
+        // Stats row
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                modifier = Modifier.weight(1f),
+                value    = watchedCount.toString(),
+                label    = "WATCHED"
+            )
+            StatCard(
+                modifier   = Modifier.weight(1f),
+                value      = if (watchlistCount > 0) watchlistCount.toString() else null,
+                label      = "WATCHLIST",
+                showIcon   = watchlistCount == 0
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatCard(
+    modifier: Modifier = Modifier,
+    value: String?,
+    label: String,
+    showIcon: Boolean = false
+) {
+    Surface(
+        modifier = modifier,
+        shape    = RoundedCornerShape(10.dp),
+        color    = MACard
+    ) {
+        Column(
+            modifier            = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (showIcon) {
+                Icon(
+                    imageVector        = Icons.Default.BookmarkBorder,
+                    contentDescription = null,
+                    tint               = MATextSecondary,
+                    modifier           = Modifier.size(22.dp)
+                )
+            } else {
+                Text(
+                    text       = value ?: "0",
+                    color      = Color.White,
+                    fontSize   = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text          = label,
+                color         = MATextSecondary,
+                fontSize      = 10.sp,
+                fontWeight    = FontWeight.SemiBold,
+                letterSpacing = 1.sp
+            )
         }
     }
 }
@@ -352,7 +342,8 @@ private fun ProfileHeader(
 @Composable
 private fun WatchHistoryTab(
     history: List<LocalWatchEntry>,
-    isLoading: Boolean
+    isLoading: Boolean,
+    onMovieClick: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -364,108 +355,32 @@ private fun WatchHistoryTab(
             }
 
             history.isEmpty() -> {
-                Column(
-                    modifier            = Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector        = Icons.Default.PlayCircle,
-                        contentDescription = null,
-                        tint               = MATextSecondary.copy(alpha = 0.5f),
-                        modifier           = Modifier.size(56.dp)
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text       = "Nothing watched yet",
-                        color      = MATextSecondary,
-                        style      = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text  = "Tap Play on any movie to start\nyour watch history",
-                        color = MATextSecondary.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                EmptyState(
+                    modifier    = Modifier.align(Alignment.Center),
+                    icon        = Icons.Default.PlayCircleOutline,
+                    title       = "Nothing watched yet",
+                    description = "Tap Play on any movie to start your watch history"
+                )
             }
 
             else -> {
                 LazyColumn(
-                    modifier        = Modifier.fillMaxSize(),
-                    contentPadding  = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier            = Modifier.fillMaxSize(),
+                    contentPadding      = PaddingValues(vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     items(history, key = { it.movieId }) { entry ->
-                        WatchHistoryCard(entry = entry)
+                        MediaRow(
+                            posterUrl  = entry.posterUrl,
+                            title      = entry.title,
+                            badge      = entry.targetType.uppercase(),
+                            badgeColor = MARed,
+                            meta       = formatEpochDate(entry.updatedAt),
+                            onClick    = { onMovieClick(entry.movieId) }
+                        )
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun WatchHistoryCard(entry: LocalWatchEntry) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape    = RoundedCornerShape(10.dp),
-        colors   = CardDefaults.cardColors(containerColor = MACard)
-    ) {
-        Row(
-            modifier          = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Poster thumbnail
-            AsyncImage(
-                model              = entry.posterUrl,
-                contentDescription = entry.title,
-                contentScale       = ContentScale.Crop,
-                modifier           = Modifier
-                    .size(width = 56.dp, height = 76.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MASurface)
-            )
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                // Type badge
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = MARed.copy(alpha = 0.15f)
-                ) {
-                    Text(
-                        text     = entry.targetType.uppercase(),
-                        color    = MARed,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text       = entry.title,
-                    color      = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    style      = MaterialTheme.typography.bodyLarge,
-                    maxLines   = 2,
-                    overflow   = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            // Date
-            Text(
-                text  = formatEpochDate(entry.updatedAt),
-                color = MATextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
         }
     }
 }
@@ -475,7 +390,8 @@ private fun WatchHistoryCard(entry: LocalWatchEntry) {
 @Composable
 private fun WatchlistTab(
     watchlist: List<LocalWatchlistItem>,
-    isLoading: Boolean
+    isLoading: Boolean,
+    onMovieClick: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -487,42 +403,33 @@ private fun WatchlistTab(
             }
 
             watchlist.isEmpty() -> {
-                Column(
-                    modifier            = Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector        = Icons.Default.Bookmark,
-                        contentDescription = null,
-                        tint               = MATextSecondary.copy(alpha = 0.5f),
-                        modifier           = Modifier.size(56.dp)
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text       = "Your watchlist is empty",
-                        color      = MATextSecondary,
-                        style      = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text  = "Tap the bookmark icon on any movie\nto save it here",
-                        color = MATextSecondary.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                EmptyState(
+                    modifier    = Modifier.align(Alignment.Center),
+                    icon        = Icons.Default.Bookmark,
+                    title       = "Watchlist is empty",
+                    description = "Tap the bookmark icon on any movie to save it here"
+                )
             }
 
             else -> {
                 LazyColumn(
-                    modifier        = Modifier.fillMaxSize(),
-                    contentPadding  = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier            = Modifier.fillMaxSize(),
+                    contentPadding      = PaddingValues(vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     items(watchlist, key = { it.movieId }) { item ->
-                        WatchlistCard(item = item)
+                        val meta = buildString {
+                            append(item.releaseYear)
+                            if (item.rating > 0) append("  ★ ${String.format("%.1f", item.rating)}")
+                        }
+                        MediaRow(
+                            posterUrl  = item.posterUrl,
+                            title      = item.title,
+                            badge      = "MOVIE",
+                            badgeColor = Color(0xFF8B5CF6),   // purple — distinct from history red
+                            meta       = meta,
+                            onClick    = { onMovieClick(item.movieId) }
+                        )
                     }
                 }
             }
@@ -530,72 +437,123 @@ private fun WatchlistTab(
     }
 }
 
+// ── Shared media row (used by both lists) ─────────────────────────────────────
+
 @Composable
-private fun WatchlistCard(item: LocalWatchlistItem) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape    = RoundedCornerShape(10.dp),
-        colors   = CardDefaults.cardColors(containerColor = MACard)
+private fun MediaRow(
+    posterUrl: String,
+    title: String,
+    badge: String,
+    badgeColor: Color,
+    meta: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier          = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .background(MADark)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier          = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Poster thumbnail
-            AsyncImage(
-                model              = item.posterUrl,
-                contentDescription = item.title,
-                contentScale       = ContentScale.Crop,
-                modifier           = Modifier
-                    .size(width = 56.dp, height = 76.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MASurface)
-            )
+        // Poster
+        AsyncImage(
+            model              = posterUrl,
+            contentDescription = title,
+            contentScale       = ContentScale.Crop,
+            modifier           = Modifier
+                .size(width = 52.dp, height = 72.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(MASurface)
+        )
 
-            Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+        // Text block
+        Column(modifier = Modifier.weight(1f)) {
+            // Badge
+            Surface(
+                shape = RoundedCornerShape(3.dp),
+                color = badgeColor.copy(alpha = 0.15f)
+            ) {
                 Text(
-                    text       = item.title,
-                    color      = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    style      = MaterialTheme.typography.bodyLarge,
-                    maxLines   = 2,
-                    overflow   = TextOverflow.Ellipsis
+                    text       = badge,
+                    color      = badgeColor,
+                    fontSize   = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
+                    modifier   = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text  = item.releaseYear.toString(),
-                        color = MATextSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (item.rating > 0) {
-                        Text("•", color = MATextSecondary, style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            text  = "★ ${String.format("%.1f", item.rating)}",
-                            color = MAGold,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
             }
-
-            Spacer(Modifier.width(8.dp))
-
-            // Added date
+            Spacer(Modifier.height(5.dp))
             Text(
-                text  = formatEpochDate(item.addedAt),
-                color = MATextSecondary,
-                style = MaterialTheme.typography.bodySmall
+                text       = title,
+                color      = Color.White,
+                fontWeight = FontWeight.Medium,
+                fontSize   = 15.sp,
+                maxLines   = 2,
+                overflow   = TextOverflow.Ellipsis
             )
+            if (meta.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text  = meta,
+                    color = MATextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
+
+        Spacer(Modifier.width(8.dp))
+
+        // Chevron
+        Icon(
+            imageVector        = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            tint               = MATextSecondary.copy(alpha = 0.5f),
+            modifier           = Modifier.size(14.dp)
+        )
+    }
+
+    HorizontalDivider(
+        color    = Color.White.copy(alpha = 0.05f),
+        modifier = Modifier.padding(start = 82.dp)  // aligns under the title, not the poster
+    )
+}
+
+// ── Shared empty state ────────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyState(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String
+) {
+    Column(
+        modifier            = modifier.padding(horizontal = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector        = icon,
+            contentDescription = null,
+            tint               = MATextSecondary.copy(alpha = 0.35f),
+            modifier           = Modifier.size(52.dp)
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(
+            text       = title,
+            color      = MATextSecondary,
+            fontWeight = FontWeight.SemiBold,
+            style      = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text      = description,
+            color     = MATextSecondary.copy(alpha = 0.55f),
+            style     = MaterialTheme.typography.bodySmall,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 
@@ -631,45 +589,27 @@ private fun RequestsTab(
                     TextButton(
                         onClick = onRetry,
                         colors  = ButtonDefaults.textButtonColors(contentColor = MARed)
-                    ) {
-                        Text("Retry")
-                    }
+                    ) { Text("Retry") }
                 }
             }
 
             uiState.requests.isEmpty() -> {
                 Column(
-                    modifier            = Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = 32.dp),
+                    modifier            = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector        = Icons.Default.Inbox,
-                        contentDescription = null,
-                        tint               = MATextSecondary.copy(alpha = 0.5f),
-                        modifier           = Modifier.size(56.dp)
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text       = "No requests yet",
-                        color      = MATextSecondary,
-                        style      = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text  = "Tap the button below to ask the admin\nto add a title",
-                        color = MATextSecondary.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodySmall
+                    EmptyState(
+                        icon        = Icons.Default.Inbox,
+                        title       = "No requests yet",
+                        description = "Tap the button below to ask the admin to add a title"
                     )
                 }
             }
 
             else -> {
                 LazyColumn(
-                    modifier        = Modifier.fillMaxSize(),
-                    contentPadding  = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                    modifier            = Modifier.fillMaxSize(),
+                    contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(uiState.requests, key = { it.id }) { request ->
@@ -679,22 +619,20 @@ private fun RequestsTab(
                             onCancel     = { onCancelRequest(request.id) }
                         )
                     }
-                    // Space for the FAB
                     item { Spacer(Modifier.height(80.dp)) }
                 }
             }
         }
 
-        // FAB — always visible in Requests tab
         ExtendedFloatingActionButton(
-            onClick          = onNewRequest,
-            modifier         = Modifier
+            onClick        = onNewRequest,
+            modifier       = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
-            containerColor   = MARed,
-            contentColor     = Color.White,
-            icon             = { Icon(Icons.Default.Add, contentDescription = null) },
-            text             = { Text("Request", fontWeight = FontWeight.SemiBold) }
+            containerColor = MARed,
+            contentColor   = Color.White,
+            icon           = { Icon(Icons.Default.Add, contentDescription = null) },
+            text           = { Text("Request", fontWeight = FontWeight.SemiBold) }
         )
     }
 }
@@ -716,26 +654,24 @@ private fun RequestCard(
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
 
-            // ── Header: title + status badge ──────────────────────────────────
             Row(
-                modifier             = Modifier.fillMaxWidth(),
-                verticalAlignment    = Alignment.Top,
+                modifier              = Modifier.fillMaxWidth(),
+                verticalAlignment     = Alignment.Top,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text      = request.title,
-                        color     = Color.White,
+                        text       = request.title,
+                        color      = Color.White,
                         fontWeight = FontWeight.SemiBold,
-                        style     = MaterialTheme.typography.bodyLarge,
-                        maxLines  = 2,
-                        overflow  = TextOverflow.Ellipsis
+                        style      = MaterialTheme.typography.bodyLarge,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(5.dp))
-                    // Type chip
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = MATextSecondary.copy(alpha = 0.12f)
+                        color = MATextSecondary.copy(alpha = 0.10f)
                     ) {
                         Text(
                             text     = request.type.replaceFirstChar { it.uppercaseChar() },
@@ -748,14 +684,13 @@ private fun RequestCard(
 
                 Spacer(Modifier.width(10.dp))
 
-                // Status badge
                 Surface(
                     shape    = RoundedCornerShape(4.dp),
-                    color    = color.copy(alpha = 0.12f),
+                    color    = color.copy(alpha = 0.10f),
                     modifier = Modifier.border(
-                        width  = 1.dp,
-                        color  = color.copy(alpha = 0.35f),
-                        shape  = RoundedCornerShape(4.dp)
+                        width = 1.dp,
+                        color = color.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(4.dp)
                     )
                 ) {
                     Text(
@@ -768,7 +703,6 @@ private fun RequestCard(
                 }
             }
 
-            // ── User note ─────────────────────────────────────────────────────
             if (!request.note.isNullOrBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Text(
@@ -780,7 +714,6 @@ private fun RequestCard(
                 )
             }
 
-            // ── Admin reply ───────────────────────────────────────────────────
             if (!request.adminNote.isNullOrBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Surface(
@@ -808,17 +741,16 @@ private fun RequestCard(
                 }
             }
 
-            // ── Cancel button — only for pending requests ─────────────────────
             if (request.status == "pending") {
                 Spacer(Modifier.height(10.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.07f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
                 Row(
                     modifier              = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     if (isCancelling) {
                         Box(
-                            modifier = Modifier.padding(12.dp),
+                            modifier         = Modifier.padding(12.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
@@ -872,12 +804,12 @@ private fun AboutTab(
             Column {
                 InfoRow(label = "Username", value = user?.name ?: "—")
                 HorizontalDivider(
-                    color    = Color.White.copy(alpha = 0.07f),
+                    color    = Color.White.copy(alpha = 0.06f),
                     modifier = Modifier.padding(start = 16.dp)
                 )
                 InfoRow(label = "Email", value = user?.email ?: "—")
                 HorizontalDivider(
-                    color    = Color.White.copy(alpha = 0.07f),
+                    color    = Color.White.copy(alpha = 0.06f),
                     modifier = Modifier.padding(start = 16.dp)
                 )
                 InfoRow(
@@ -896,7 +828,7 @@ private fun AboutTab(
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
             colors   = ButtonDefaults.outlinedButtonColors(contentColor = MARed),
-            border   = BorderStroke(1.dp, MARed.copy(alpha = 0.55f)),
+            border   = BorderStroke(1.dp, MARed.copy(alpha = 0.5f)),
             shape    = RoundedCornerShape(8.dp)
         ) {
             Text("Sign Out", fontWeight = FontWeight.SemiBold)
@@ -936,7 +868,7 @@ private fun InfoRow(
     }
 }
 
-// ── New request bottom sheet ──────────────────────────────────────────────────
+// ── New-request bottom sheet ──────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -977,33 +909,19 @@ private fun NewRequestSheet(
             )
             Spacer(Modifier.height(22.dp))
 
-            // ── Title ─────────────────────────────────────────────────────────
             OutlinedTextField(
-                value         = title,
-                onValueChange = { title = it },
-                label         = { Text("Title *") },
-                placeholder   = { Text("e.g. Interstellar") },
-                modifier      = Modifier.fillMaxWidth(),
-                singleLine    = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = MARed,
-                    focusedLabelColor    = MARed,
-                    cursorColor          = MARed,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                    unfocusedLabelColor  = MATextSecondary,
-                    focusedTextColor     = Color.White,
-                    unfocusedTextColor   = Color.White,
-                    focusedPlaceholderColor   = MATextSecondary,
-                    unfocusedPlaceholderColor = MATextSecondary
-                )
+                value           = title,
+                onValueChange   = { title = it },
+                label           = { Text("Title *") },
+                placeholder     = { Text("e.g. Interstellar") },
+                modifier        = Modifier.fillMaxWidth(),
+                singleLine      = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                colors          = redFieldColors()
             )
 
             Spacer(Modifier.height(18.dp))
 
-            // ── Type selector ─────────────────────────────────────────────────
             Text(
                 text  = "Type",
                 color = MATextSecondary,
@@ -1015,19 +933,17 @@ private fun NewRequestSheet(
                     FilterChip(
                         selected = selectedType == type,
                         onClick  = { selectedType = type },
-                        label    = {
-                            Text(type.replaceFirstChar { it.uppercaseChar() })
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
+                        label    = { Text(type.replaceFirstChar { it.uppercaseChar() }) },
+                        colors   = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MARed,
                             selectedLabelColor     = Color.White,
                             containerColor         = MACard,
                             labelColor             = MATextSecondary
                         ),
-                        border = FilterChipDefaults.filterChipBorder(
+                        border   = FilterChipDefaults.filterChipBorder(
                             enabled             = true,
                             selected            = selectedType == type,
-                            borderColor         = Color.White.copy(alpha = 0.15f),
+                            borderColor         = Color.White.copy(alpha = 0.12f),
                             selectedBorderColor = MARed
                         )
                     )
@@ -1036,7 +952,6 @@ private fun NewRequestSheet(
 
             Spacer(Modifier.height(18.dp))
 
-            // ── Note ──────────────────────────────────────────────────────────
             OutlinedTextField(
                 value         = note,
                 onValueChange = { if (it.length <= 500) note = it },
@@ -1045,17 +960,7 @@ private fun NewRequestSheet(
                 modifier      = Modifier.fillMaxWidth(),
                 minLines      = 3,
                 maxLines      = 4,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = MARed,
-                    focusedLabelColor    = MARed,
-                    cursorColor          = MARed,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                    unfocusedLabelColor  = MATextSecondary,
-                    focusedTextColor     = Color.White,
-                    unfocusedTextColor   = Color.White,
-                    focusedPlaceholderColor   = MATextSecondary,
-                    unfocusedPlaceholderColor = MATextSecondary
-                ),
+                colors        = redFieldColors(),
                 supportingText = {
                     Text("${note.length}/500", color = MATextSecondary)
                 }
@@ -1075,11 +980,7 @@ private fun NewRequestSheet(
             Button(
                 onClick  = {
                     if (title.isNotBlank()) {
-                        onSubmit(
-                            title.trim(),
-                            selectedType,
-                            note.trim().ifBlank { null }
-                        )
+                        onSubmit(title.trim(), selectedType, note.trim().ifBlank { null })
                     }
                 },
                 enabled  = title.isNotBlank() && !isSubmitting,
@@ -1087,8 +988,8 @@ private fun NewRequestSheet(
                 colors   = ButtonDefaults.buttonColors(
                     containerColor         = MARed,
                     contentColor           = Color.White,
-                    disabledContainerColor = MARed.copy(alpha = 0.4f),
-                    disabledContentColor   = Color.White.copy(alpha = 0.6f)
+                    disabledContainerColor = MARed.copy(alpha = 0.35f),
+                    disabledContentColor   = Color.White.copy(alpha = 0.5f)
                 ),
                 shape    = RoundedCornerShape(8.dp)
             ) {
@@ -1099,9 +1000,28 @@ private fun NewRequestSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Submit Request", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text       = "Submit Request",
+                        fontWeight = FontWeight.SemiBold,
+                        modifier   = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             }
         }
     }
 }
+
+// ── Shared text field colours ─────────────────────────────────────────────────
+
+@Composable
+private fun redFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor        = MARed,
+    focusedLabelColor         = MARed,
+    cursorColor               = MARed,
+    unfocusedBorderColor      = Color.White.copy(alpha = 0.18f),
+    unfocusedLabelColor       = MATextSecondary,
+    focusedTextColor          = Color.White,
+    unfocusedTextColor        = Color.White,
+    focusedPlaceholderColor   = MATextSecondary,
+    unfocusedPlaceholderColor = MATextSecondary
+)
