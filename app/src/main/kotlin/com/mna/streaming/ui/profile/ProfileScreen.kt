@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.*
+import androidx.compose.material3.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
