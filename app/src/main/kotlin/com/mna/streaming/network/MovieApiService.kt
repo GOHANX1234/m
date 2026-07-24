@@ -38,7 +38,20 @@ interface MovieApiService {
     @GET("api/search")
     suspend fun search(@Query("q") q: String): SearchResponse
 
+    // ── User profile ──────────────────────────────────────────────────────────
+
+    /** Full user profile + server-side stats (watchedCount, watchlistCount, joinedAt). */
+    @GET("api/me")
+    suspend fun getMe(): MeResponse
+
     // ── Watchlist ─────────────────────────────────────────────────────────────
+
+    /** Full watchlist with populated content, newest-saved first. */
+    @GET("api/watchlist/all")
+    suspend fun getWatchlistAll(
+        @Query("page")  page: Int  = 1,
+        @Query("limit") limit: Int = 50
+    ): WatchlistAllResponse
 
     @GET("api/watchlist")
     suspend fun getWatchlistStatus(
@@ -56,6 +69,13 @@ interface MovieApiService {
     suspend fun trackView(@Body request: ViewsRequest): ViewsResponse
 
     // ── Watch history ─────────────────────────────────────────────────────────
+
+    /** Paginated watch history, newest-watched first. */
+    @GET("api/watch-history")
+    suspend fun getWatchHistoryList(
+        @Query("page")  page: Int  = 1,
+        @Query("limit") limit: Int = 30
+    ): WatchHistoryListResponse
 
     /** Save playback progress. Call every 15–30 s and on player close. */
     @POST("api/watch-history")
