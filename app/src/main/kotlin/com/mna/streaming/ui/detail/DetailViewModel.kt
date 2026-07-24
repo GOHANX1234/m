@@ -106,11 +106,14 @@ class DetailViewModel(
      * Record that the user started watching this movie.
      * Writes a local watch-history entry so the Profile → Watch History tab
      * shows this film immediately, without needing a server GET endpoint.
-     * Best-effort — any error is silently swallowed so playback is never blocked.
+     *
+     * Uses [MAApplication.appScope] instead of [viewModelScope] so the write
+     * is guaranteed to complete even if the ViewModel is cleared before the
+     * coroutine finishes (e.g. rapid back-navigation after hitting Play).
      */
     fun recordWatched() {
         val movie = _uiState.value.movie ?: return
-        viewModelScope.launch {
+        MAApplication.appScope.launch {
             movieRepository.saveLocalWatchHistory(movie)
         }
     }
