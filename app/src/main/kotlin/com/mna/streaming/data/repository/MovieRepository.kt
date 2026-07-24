@@ -209,6 +209,84 @@ class MovieRepository(
     suspend fun getLocalWatchlist(): List<LocalWatchlistItem> =
         withContext(Dispatchers.IO) { localProfileStore.getWatchlist() }
 
+    // ── Profile — server-side reads (new endpoints) ───────────────────────────
+
+    /** Fetch full user profile + accurate server-side stats from /api/me. */
+    suspend fun getMe() = withContext(Dispatchers.IO) {
+        service.getMe()
+    }
+
+    /**
+     * Fetch watch history from the server (/api/watch-history).
+     * Maps each entry to [LocalWatchEntry] so the Profile screen reuses the
+     * same display logic regardless of data source.
+     */
+    suspend fun getServerWatchHistory(): List<LocalWatchEntry> = withContext(Dispatchers.IO) {
+        val response = service.getWatchHistoryList(page = 1, limit = 30)
+        response.history.mapNotNull { entry ->
+            val content = entry.content ?: return@mapNotNull null
+            when (entry.targetType) {
+                "Movie" -> LocalWatchEntry(
+                    movieId    = content.id,
+                    title      = content.title ?: "Unknown",
+                    posterUrl  = content.posterUrl ?: "",
+                    targetType = "Movie",
+                    updatedAt  = parseIso(entry.updatedAt)
+                )
+                "Episode" -> {
+                    val seriesTitle = content.seriesInfo?.title ?: "Unknown Series"
+                    val label = buildString {
+                        if ((content.season ?: 0) > 0) append("S${content.season} ")
+                        if ((content.episodeNumber ?: 0) > 0) append("E${content.episodeNumber} · ")
+                        append(seriesTitle)
+                    }
+                    LocalWatchEntry(
+                        movieId    = content.id,
+                        title      = label,
+                        posterUrl  = content.seriesInfo?.posterUrl ?: "",
+                        targetType = "Episode",
+                        updatedAt  = parseIso(entry.updatedAt)
+                    )
+                }
+                else -> null
+            }
+        }
+    }
+
+    /**
+     * Fetch the full watchlist from the server (/api/watchlist/all).
+     * Maps each entry to [LocalWatchlistItem] for reuse in the Profile screen.
+     */
+    suspend fun getServerWatchlist(): List<LocalWatchlistItem> = withContext(Dispatchers.IO) {
+        val response = service.getWatchlistAll(page = 1, limit = 50)
+        response.watchlist.mapNotNull { entry ->
+            val content = entry.content ?: return@mapNotNull null
+            LocalWatchlistItem(
+                movieId     = content.id,
+                title       = content.title,
+                posterUrl   = content.posterUrl ?: "",
+                releaseYear = content.releaseYear ?: 0,
+                rating      = content.rating ?: 0.0,
+                addedAt     = parseIso(entry.savedAt)
+            )
+        }
+    }
+
+    // ── Internal helpers ──────────────────────────────────────────────────────
+
+    /** Parse an ISO-8601 timestamp string to epoch milliseconds. */
+    private fun parseIso(iso: String): Long = try {
+        java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
+            .also { it.timeZone = java.util.TimeZone.getTimeZone("UTC") }
+            .parse(iso)?.time ?: System.currentTimeMillis()
+    } catch (_: Exception) {
+        try {
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
+                .also { it.timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                .parse(iso)?.time ?: System.currentTimeMillis()
+        } catch (_: Exception) { System.currentTimeMillis() }
+    }
+
     // ── Reviews ───────────────────────────────────────────────────────────────
 
     suspend fun getReviews(movieId: String): List<ApiReview> = withContext(Dispatchers.IO) {
