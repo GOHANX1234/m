@@ -20,6 +20,10 @@ import kotlinx.coroutines.launch
 
 data class ProfileUiState(
     val user: SessionUser? = null,
+    // ── Server stats (from /api/me — accurate totals, not list sizes) ──────────
+    val watchedCount: Int = 0,
+    val watchlistCount: Int = 0,
+    val joinedAt: String? = null,
     // ── Watch history ──────────────────────────────────────────────────────────
     val watchHistory: List<LocalWatchEntry> = emptyList(),
     val isLoadingHistory: Boolean = false,
@@ -45,14 +49,49 @@ class ProfileViewModel(
 
     init {
         viewModelScope.launch {
-            // Restore the user from the persisted session immediately —
-            // no extra network call needed since we cached it at login.
-            val user = MAApplication.sessionManager.getSavedUser()
-            _uiState.update { it.copy(user = user) }
+            // Restore cached user immediately so the UI isn't blank while /api/me loads
+            val cachedUser = MAApplication.sessionManager.getSavedUser()
+            _uiState.update { it.copy(user = cachedUser) }
         }
+        loadUserAndStats()
         loadHistory()
         loadWatchlist()
         loadRequests()
+    }
+
+    // ── User + stats (/api/me) ────────────────────────────────────────────────
+
+    /**
+     * Fetches the full user profile and server-side stats (watchedCount,
+     * watchlistCount, joinedAt) from /api/me. These are the authoritative
+     * totals — local list sizes may not match due to pagination.
+     */
+    fun loadUserAndStats() {
+        viewModelScope.launch {
+            try {
+                val me = movieRepository.getMe()
+                // Build a SessionUser from /api/me so the profile card is always fresh
+                val user = SessionUser(
+                    id    = me.user.id,
+                    name  = me.user.nickname,
+                    email = me.user.email,
+                    image = me.user.image,
+                    role  = me.user.role
+                )
+                _uiState.update {
+                    it.copy(
+                        user           = user,
+                        watchedCount   = me.stats.watchedCount,
+                        watchlistCount = me.stats.watchlistCount,
+                        joinedAt       = me.user.joinedAt
+                    )
+                }
+                // Persist fresh user so the session is always up to date
+                MAApplication.sessionManager.saveUser(user)
+            } catch (_: Exception) {
+                // Network unavailable — cached user from init is already shown
+            }
+        }
     }
 
     // ── Watch History ─────────────────────────────────────────────────────────
@@ -60,8 +99,14 @@ class ProfileViewModel(
     fun loadHistory() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingHistory = true) }
-            val history = localProfileStore.getWatchHistory()
-            _uiState.update { it.copy(watchHistory = history, isLoadingHistory = false) }
+            try {
+                val history = movieRepository.getServerWatchHistory()
+                _uiState.update { it.copy(watchHistory = history, isLoadingHistory = false) }
+            } catch (_: Exception) {
+                // Fall back to local store if server is unreachable
+                val history = localProfileStore.getWatchHistory()
+                _uiState.update { it.copy(watchHistory = history, isLoadingHistory = false) }
+            }
         }
     }
 
@@ -70,8 +115,14 @@ class ProfileViewModel(
     fun loadWatchlist() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingWatchlist = true) }
-            val list = localProfileStore.getWatchlist()
-            _uiState.update { it.copy(watchlist = list, isLoadingWatchlist = false) }
+            try {
+                val list = movieRepository.getServerWatchlist()
+                _uiState.update { it.copy(watchlist = list, isLoadingWatchlist = false) }
+            } catch (_: Exception) {
+                // Fall back to local store if server is unreachable
+                val list = localProfileStore.getWatchlist()
+                _uiState.update { it.copy(watchlist = list, isLoadingWatchlist = false) }
+            }
         }
     }
 
