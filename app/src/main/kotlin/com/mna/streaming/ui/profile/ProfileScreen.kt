@@ -71,6 +71,17 @@ private fun formatEpochDate(epochMillis: Long): String = try {
     SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(epochMillis))
 } catch (_: Exception) { "" }
 
+private fun formatJoinDate(iso: String): String = try {
+    val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        .also { it.timeZone = java.util.TimeZone.getTimeZone("UTC") }
+    val date = parser.parse(iso)
+        ?: SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+            .also { it.timeZone = java.util.TimeZone.getTimeZone("UTC") }
+            .parse(iso)
+        ?: return "—"
+    SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(date)
+} catch (_: Exception) { "—" }
+
 // ── Root screen ───────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,8 +141,8 @@ fun ProfileScreen(
         ) {
             ProfileHeader(
                 user           = uiState.user,
-                watchedCount   = uiState.watchHistory.size,
-                watchlistCount = uiState.watchlist.size
+                watchedCount   = uiState.watchedCount,
+                watchlistCount = uiState.watchlistCount
             )
 
             val tabs = listOf("Watch History", "Watchlist", "Requests", "About")
@@ -192,6 +203,7 @@ fun ProfileScreen(
                 )
                 3 -> AboutTab(
                     user      = uiState.user,
+                    joinedAt  = uiState.joinedAt,
                     onSignOut = onSignOut
                 )
             }
@@ -805,6 +817,7 @@ private fun RequestCard(
 @Composable
 private fun AboutTab(
     user: SessionUser?,
+    joinedAt: String?,
     onSignOut: () -> Unit
 ) {
     Column(
@@ -844,6 +857,13 @@ private fun AboutTab(
                     value      = if (user?.role == "admin") "Administrator" else "Member",
                     valueColor = if (user?.role == "admin") MARed else Color.White
                 )
+                if (joinedAt != null) {
+                    HorizontalDivider(
+                        color    = Color.White.copy(alpha = 0.06f),
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                    InfoRow(label = "Joined", value = formatJoinDate(joinedAt))
+                }
             }
         }
 
