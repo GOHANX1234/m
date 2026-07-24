@@ -6,6 +6,9 @@ import com.mna.streaming.data.SessionManager
 import com.mna.streaming.data.repository.AuthRepository
 import com.mna.streaming.data.repository.MovieRepository
 import com.mna.streaming.network.ApiClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Application class — initialises the dependency graph exactly once.
@@ -30,6 +33,13 @@ class MAApplication : Application() {
 
         lateinit var movieRepository: MovieRepository
             private set
+
+        /**
+         * Application-level coroutine scope for fire-and-forget writes that must
+         * survive ViewModel lifecycle (e.g. watch-history persistence).
+         * Uses SupervisorJob so a child failure never cancels the whole scope.
+         */
+        val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     }
 
     override fun onCreate() {
