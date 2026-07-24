@@ -26,11 +26,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.mna.streaming.data.LocalWatchEntry
@@ -81,6 +84,17 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNewRequestSheet by remember { mutableStateOf(false) }
+
+    // Refresh local data every time this screen enters the RESUMED state so
+    // watch-history and watchlist entries written during the same session appear
+    // immediately without the user having to navigate away and back.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.loadHistory()
+            viewModel.loadWatchlist()
+        }
+    }
 
     Scaffold(
         containerColor = MADark,
@@ -209,135 +223,144 @@ private fun ProfileHeader(
     watchedCount: Int,
     watchlistCount: Int
 ) {
-    Column(
-        modifier            = Modifier
+    Box(
+        modifier = Modifier
             .fillMaxWidth()
             .background(
                 Brush.verticalGradient(
-                    listOf(MASurface, MADark)
+                    colorStops = arrayOf(
+                        0.0f to MASurface,
+                        0.7f to MASurface.copy(alpha = 0.85f),
+                        1.0f to MADark
+                    )
                 )
             )
-            .padding(top = 20.dp, bottom = 18.dp, start = 20.dp, end = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Avatar
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MARed),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text       = user?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                color      = Color.White,
-                fontSize   = 30.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Name row + admin badge inline
-        Row(
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text       = user?.name ?: "",
-                color      = Color.White,
-                fontSize   = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            if (user?.role == "admin") {
-                Surface(
-                    shape  = RoundedCornerShape(4.dp),
-                    color  = MARed.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, MARed.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text       = "Admin",
-                        color      = MARed,
-                        fontSize   = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier   = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(3.dp))
-
-        Text(
-            text     = user?.email ?: "",
-            color    = MATextSecondary,
-            fontSize = 13.sp
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        // Stats row
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                modifier = Modifier.weight(1f),
-                value    = watchedCount.toString(),
-                label    = "WATCHED"
-            )
-            StatCard(
-                modifier   = Modifier.weight(1f),
-                value      = if (watchlistCount > 0) watchlistCount.toString() else null,
-                label      = "WATCHLIST",
-                showIcon   = watchlistCount == 0
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatCard(
-    modifier: Modifier = Modifier,
-    value: String?,
-    label: String,
-    showIcon: Boolean = false
-) {
-    Surface(
-        modifier = modifier,
-        shape    = RoundedCornerShape(10.dp),
-        color    = MACard
     ) {
         Column(
             modifier            = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp),
+                .padding(top = 24.dp, bottom = 20.dp, start = 20.dp, end = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (showIcon) {
-                Icon(
-                    imageVector        = Icons.Default.BookmarkBorder,
-                    contentDescription = null,
-                    tint               = MATextSecondary,
-                    modifier           = Modifier.size(22.dp)
-                )
-            } else {
+
+            // Avatar with red ring
+            Box(
+                modifier         = Modifier
+                    .size(88.dp)
+                    .border(2.dp, MARed, CircleShape)
+                    .padding(3.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(Color(0xFFE50914), Color(0xFF8B0000))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text       = user?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        color      = Color.White,
+                        fontSize   = 36.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Name + role badge
+            Row(
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
-                    text       = value ?: "0",
+                    text       = user?.name ?: "",
                     color      = Color.White,
-                    fontSize   = 24.sp,
+                    fontSize   = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
+                if (user?.role == "admin") {
+                    Surface(
+                        shape  = RoundedCornerShape(4.dp),
+                        color  = MARed.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, MARed.copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text          = "Admin",
+                            color         = MARed,
+                            fontSize      = 10.sp,
+                            fontWeight    = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                            modifier      = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
+                }
             }
+
             Spacer(Modifier.height(4.dp))
+
             Text(
-                text          = label,
-                color         = MATextSecondary,
-                fontSize      = 10.sp,
-                fontWeight    = FontWeight.SemiBold,
-                letterSpacing = 1.sp
+                text     = user?.email ?: "",
+                color    = MATextSecondary,
+                fontSize = 13.sp
             )
+
+            Spacer(Modifier.height(22.dp))
+
+            // Stats — single card with divider separating two counts
+            Surface(
+                shape    = RoundedCornerShape(12.dp),
+                color    = MACard,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier              = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 18.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    StatItem(value = watchedCount.toString(), label = "WATCHED")
+
+                    VerticalDivider(
+                        modifier  = Modifier.height(36.dp),
+                        color     = Color.White.copy(alpha = 0.08f),
+                        thickness = 1.dp
+                    )
+
+                    StatItem(value = watchlistCount.toString(), label = "WATCHLIST")
+                }
+            }
         }
+    }
+}
+
+// Inline stat — used inside the header card
+@Composable
+private fun StatItem(value: String, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text       = value,
+            color      = Color.White,
+            fontSize   = 26.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text          = label,
+            color         = MATextSecondary,
+            fontSize      = 10.sp,
+            fontWeight    = FontWeight.SemiBold,
+            letterSpacing = 1.2.sp
+        )
     }
 }
 
