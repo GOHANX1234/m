@@ -107,6 +107,105 @@ data class WatchHistoryRequest(
 
 data class WatchHistoryResponse(val ok: Boolean)
 
+// ── /api/me ───────────────────────────────────────────────────────────────────
+
+data class MeUser(
+    val id: String,
+    val nickname: String,
+    val email: String,
+    val image: String?,
+    val role: String,
+    val joinedAt: String?
+)
+
+data class MeStats(
+    val watchedCount: Int,
+    val watchlistCount: Int
+)
+
+data class MeResponse(
+    val user: MeUser,
+    val stats: MeStats
+)
+
+// ── /api/watch-history (GET) ──────────────────────────────────────────────────
+
+data class ApiSeriesInfo(
+    @SerializedName("_id") val id: String,
+    val title: String,
+    val slug: String?,
+    val posterUrl: String?
+)
+
+data class ApiHistoryContent(
+    @SerializedName("_id") val id: String,
+    val title: String?,
+    val slug: String?,
+    val posterUrl: String?,
+    val releaseYear: Int?,
+    val rating: Double?,
+    val duration: Int?,
+    // Episode-only fields
+    val episodeNumber: Int?,
+    val season: Int?,
+    val series: String?,
+    val seriesInfo: ApiSeriesInfo?
+)
+
+data class ApiHistoryEntry(
+    @SerializedName("_id") val id: String,
+    val targetType: String,
+    val progressSeconds: Int,
+    val completed: Boolean,
+    val updatedAt: String,
+    val createdAt: String,
+    val content: ApiHistoryContent?
+)
+
+data class WatchHistoryListResponse(
+    val history: List<ApiHistoryEntry>,
+    val total: Int,
+    val page: Int,
+    val totalPages: Int
+)
+
+// ── /api/watchlist/all ────────────────────────────────────────────────────────
+
+data class ApiWatchlistGenre(
+    @SerializedName("_id") val id: String,
+    val name: String
+)
+
+data class ApiWatchlistContent(
+    @SerializedName("_id") val id: String,
+    val title: String,
+    val slug: String?,
+    val posterUrl: String?,
+    val bannerUrl: String?,
+    val releaseYear: Int?,
+    val rating: Double?,
+    val ratingCount: Int?,
+    val genres: List<ApiWatchlistGenre>?,
+    val type: String?,
+    val status: String?,
+    val publishStatus: String?
+)
+
+data class ApiWatchlistEntry(
+    @SerializedName("_id") val id: String,
+    val targetType: String,
+    val targetId: String,
+    val savedAt: String,
+    val content: ApiWatchlistContent?
+)
+
+data class WatchlistAllResponse(
+    val watchlist: List<ApiWatchlistEntry>,
+    val total: Int,
+    val page: Int,
+    val totalPages: Int
+)
+
 // ── Reviews ───────────────────────────────────────────────────────────────────
 
 data class ReviewRequest(
