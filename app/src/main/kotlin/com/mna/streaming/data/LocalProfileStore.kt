@@ -65,9 +65,11 @@ class LocalProfileStore(context: Context) {
     private val gson      = Gson()
 
     companion object {
-        private val KEY_WATCH_HISTORY = stringPreferencesKey("watch_history")
-        private val KEY_WATCHLIST     = stringPreferencesKey("watchlist")
-        private const val MAX_HISTORY = 50          // keep newest 50 entries
+        private val KEY_WATCH_HISTORY   = stringPreferencesKey("watch_history")
+        private val KEY_WATCHLIST       = stringPreferencesKey("watchlist")
+        private val KEY_SEARCH_HISTORY  = stringPreferencesKey("search_history")
+        private const val MAX_HISTORY        = 50   // keep newest 50 watch-history entries
+        private const val MAX_SEARCH_HISTORY = 12   // keep newest 12 search terms
     }
 
     // ── Watch History ─────────────────────────────────────────────────────────
@@ -118,6 +120,47 @@ class LocalProfileStore(context: Context) {
     suspend fun removeWatchlistItem(movieId: String) {
         val updated = getWatchlist().filter { it.movieId != movieId }
         dataStore.edit { it[KEY_WATCHLIST] = gson.toJson(updated) }
+    }
+
+    // ── Search history ────────────────────────────────────────────────────────
+    //
+    // Device-local list of past search terms shown on the Search screen when
+    // the query field is empty. Not account data (kept across sign-out) —
+    // purely a typing-shortcut convenience, like a browser's address bar.
+
+    suspend fun getSearchHistory(): List<String> {
+        val json = dataStore.data.map { it[KEY_SEARCH_HISTORY] }.firstOrNull()
+            ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
+
+    /**
+     * Prepend [query] to the search history. De-duplicates case-insensitively
+     * (re-searching a term bumps it back to the top rather than creating a
+     * second entry) and caps the list at [MAX_SEARCH_HISTORY].
+     */
+    suspend fun addSearchHistoryItem(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        val current = getSearchHistory().toMutableList()
+        current.removeAll { it.equals(trimmed, ignoreCase = true) }
+        current.add(0, trimmed)
+        val saved = current.take(MAX_SEARCH_HISTORY)
+        dataStore.edit { it[KEY_SEARCH_HISTORY] = gson.toJson(saved) }
+    }
+
+    /** Remove a single term from the search history (per-item "x" in the UI). */
+    suspend fun removeSearchHistoryItem(query: String) {
+        val updated = getSearchHistory().filterNot { it.equals(query, ignoreCase = true) }
+        dataStore.edit { it[KEY_SEARCH_HISTORY] = gson.toJson(updated) }
+    }
+
+    /** Wipe the entire search history ("Clear All" in the UI). */
+    suspend fun clearSearchHistory() {
+        dataStore.edit { it.remove(KEY_SEARCH_HISTORY) }
     }
 
     // ── Session cleanup ───────────────────────────────────────────────────────
