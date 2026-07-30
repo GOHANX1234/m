@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Monochrome notification icon for Sarrows.
+
+    Android requires the small notification icon to be a flat white-on-transparent
+    glyph. The system applies its own tinting; any colour here will be ignored.
+    Paths are the same "M&A" letterforms as the launcher icon, just without the
+    red background circle and scaled to a 24 × 24 dp canvas.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- M -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,42 L31,42 L36,52 L42,42 L47,42 L47,65 L42,65 L42,54 L36,62 L31,54 L31,65 L26,65 Z" />
+
+    <!-- & -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M52,55 C51,54 49,52 49,50
+                    C49,47 52,44 55,44
+                    C59,44 61,47 61,50
+                    C61,52 60,54 58,55
+            L61,60
+            C62,58 63,57 63,55
+            L66,55
+            C66,58 65,60 63,62
+            L66,66 L62,66 L61,65
+            C59,65 57,66 55,66
+            C51,66 48,63 48,59
+            C48,57 49,56 51,55
+            L52,55 Z
+            M55,48
+            C54,48 53,49 53,50
+            C53,51 54,52 55,53
+            L57,51
+            C58,50 59,50 59,49
+            C59,49 57,48 55,48 Z" />
+
+    <!-- A -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M69,42 L74,42 L82,65 L77,65 L76,60 L68,60 L66,65 L61,65 Z
+            M72,47 L69,56 L74,56 Z" />
+
+</vector>

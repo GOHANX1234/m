@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "757183210471",
+    "project_id": "ma-stream",
+    "storage_bucket": "ma-stream.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:757183210471:android:50fab37c8876f364011342",
+        "android_client_info": {
+          "package_name": "com.mna.streaming"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHF27DCw8XQ64J6pibg0AbVKojmO1upVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
