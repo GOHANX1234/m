@@ -2,7 +2,12 @@ package com.mna.streaming.ui.detail
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -26,19 +31,26 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.mna.streaming.network.models.ApiCastMember
 import com.mna.streaming.network.models.ApiReview
+import com.mna.streaming.ui.components.MAPrimaryButton
 import com.mna.streaming.ui.home.MovieCard
 import com.mna.streaming.ui.player.PlayerActivity
-import com.mna.streaming.ui.theme.MADark
+import com.mna.streaming.ui.theme.MABorderSubtle
 import com.mna.streaming.ui.theme.MACard
+import com.mna.streaming.ui.theme.MADark
 import com.mna.streaming.ui.theme.MAGold
+import com.mna.streaming.ui.theme.MAMotion
+import com.mna.streaming.ui.theme.MARadius
 import com.mna.streaming.ui.theme.MARed
+import com.mna.streaming.ui.theme.MASpacing
 import com.mna.streaming.ui.theme.MATextSecondary
+import com.mna.streaming.ui.theme.pressScaleClickable
 
 @Composable
 fun DetailScreen(
@@ -83,277 +95,276 @@ fun DetailScreen(
             uiState.movie != null -> {
                 val movie = uiState.movie!!
 
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                var contentVisible by remember(movieId) { mutableStateOf(false) }
+                LaunchedEffect(movieId) { contentVisible = true }
 
-                    // ── Backdrop ────────────────────────────────────────────
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(280.dp)
-                    ) {
-                        AsyncImage(
-                            model          = movie.backdropUrl,
-                            contentDescription = movie.title,
-                            contentScale   = ContentScale.Crop,
-                            modifier       = Modifier.fillMaxSize()
-                        )
+                AnimatedVisibility(
+                    visible = contentVisible,
+                    enter   = fadeIn(tween(MAMotion.slow))
+                ) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+
+                        // ── Backdrop ────────────────────────────────────────
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(listOf(Color.Transparent, MADark))
-                                )
-                        )
-                        // Central play button
-                        IconButton(
-                            onClick  = {
-                                // Record locally before launching the player so the
-                                // Profile → Watch History tab shows this film immediately.
-                                detailViewModel.recordWatched()
-                                val intent = Intent(context, PlayerActivity::class.java).apply {
-                                    putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
-                                    putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
-                                }
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .size(64.dp)
-                                .background(MARed, CircleShape)
+                                .fillMaxWidth()
+                                .height(340.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play",
-                                tint     = Color.White,
-                                modifier = Modifier.size(36.dp)
+                            AsyncImage(
+                                model              = movie.backdropUrl,
+                                contentDescription = movie.title,
+                                contentScale       = ContentScale.Crop,
+                                modifier           = Modifier.fillMaxSize()
                             )
+                            // Layered scrim: dark enough at top for the back button,
+                            // fully transparent mid-image, then melts into the solid
+                            // background so the overlapping content sheet below has
+                            // a seamless edge instead of a hard color seam.
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colorStops = arrayOf(
+                                                0.0f  to Color.Black.copy(alpha = 0.55f),
+                                                0.32f to Color.Transparent,
+                                                0.74f to MADark.copy(alpha = 0.55f),
+                                                1.0f  to MADark
+                                            )
+                                        )
+                                    )
+                            )
+                            // Central play button
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(68.dp)
+                                    .background(Color.Black.copy(alpha = 0.28f), CircleShape)
+                                    .border(1.5.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+                                    .pressScaleClickable(pressedScale = 0.9f) {
+                                        detailViewModel.recordWatched()
+                                        val intent = Intent(context, PlayerActivity::class.java).apply {
+                                            putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
+                                            putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
+                                        }
+                                        context.startActivity(intent)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector        = Icons.Default.PlayArrow,
+                                    contentDescription = "Play",
+                                    tint               = Color.White,
+                                    modifier           = Modifier.size(34.dp)
+                                )
+                            }
                         }
-                    }
 
-                    // ── Info section ────────────────────────────────────────
-                    Column(modifier = Modifier.padding(16.dp)) {
-
-                        Row(
-                            modifier             = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment    = Alignment.Top
+                        // ── Content sheet — overlaps the backdrop's rounded top
+                        // corners for a layered, premium "sliding sheet" look.
+                        Column(
+                            modifier = Modifier
+                                .offset(y = (-20).dp)
+                                .clip(RoundedCornerShape(topStart = MARadius.xl, topEnd = MARadius.xl))
+                                .background(MADark)
+                                .padding(horizontal = MASpacing.lg)
+                                .padding(top = MASpacing.lg)
                         ) {
+
                             Text(
                                 text       = movie.title,
                                 style      = MaterialTheme.typography.headlineMedium,
                                 color      = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                modifier   = Modifier.weight(1f)
+                                fontWeight = FontWeight.Bold
                             )
-                            // Watchlist bookmark button
-                            IconButton(
-                                onClick  = { detailViewModel.toggleWatchlist() },
-                                enabled  = !uiState.isWatchlistLoading
-                            ) {
-                                Icon(
-                                    imageVector = if (uiState.inWatchlist)
-                                        Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                    contentDescription = if (uiState.inWatchlist) "Remove from watchlist" else "Add to watchlist",
-                                    tint     = if (uiState.inWatchlist) MARed else Color.White
-                                )
-                            }
-                        }
 
-                        Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(MASpacing.sm))
 
-                        // Meta row: rating • year • duration
-                        Row(
-                            verticalAlignment     = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = MAGold, modifier = Modifier.size(16.dp))
-                            Text(
-                                text       = String.format("%.1f", movie.rating),
-                                color      = MAGold,
-                                style      = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text("•", color = MATextSecondary)
-                            Text(movie.year.toString(), color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
-                            Text("•", color = MATextSecondary)
-                            Text(movie.durationFormatted, color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
-                            Text("•", color = MATextSecondary)
-                            Icon(Icons.Default.Visibility, contentDescription = null, tint = MATextSecondary, modifier = Modifier.size(14.dp))
-                            Text("${movie.views}", color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-
-                        // Genre chips
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            movie.genres.forEach { genre ->
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = MACard
-                                ) {
-                                    Text(
-                                        text     = genre,
-                                        color    = Color.White,
-                                        style    = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        Text(
-                            text      = movie.description,
-                            style     = MaterialTheme.typography.bodyMedium,
-                            color     = MATextSecondary,
-                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-                        )
-
-                        Spacer(Modifier.height(24.dp))
-
-                        // ── Play Now button ─────────────────────────────────
-                        Button(
-                            onClick  = {
-                                detailViewModel.recordWatched()
-                                val intent = Intent(context, PlayerActivity::class.java).apply {
-                                    putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
-                                    putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
-                                }
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape    = RoundedCornerShape(8.dp),
-                            colors   = ButtonDefaults.buttonColors(
-                                containerColor = MARed,
-                                contentColor   = Color.White
-                            )
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Play Now", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        // Watch Trailer button (only shown when a trailer URL is available)
-                        if (movie.trailerUrl != null) {
-                            OutlinedButton(
-                                onClick  = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(movie.trailerUrl))
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                shape    = RoundedCornerShape(8.dp),
-                                colors   = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                            ) {
-                                Icon(Icons.Default.PlayCircleOutline, contentDescription = null, tint = Color.White)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Watch Trailer", style = MaterialTheme.typography.titleSmall)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                        }
-
-                        // Rate button
-                        OutlinedButton(
-                            onClick  = { detailViewModel.showRatingDialog() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape    = RoundedCornerShape(8.dp),
-                            colors   = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                        ) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = MAGold)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text  = if (uiState.userReview != null) "Update Your Rating" else "Rate This Movie",
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                        }
-
-                        // ── Cast ────────────────────────────────────────────
-                        if (uiState.cast.isNotEmpty()) {
-                            Spacer(Modifier.height(24.dp))
-                            Text(
-                                text       = "Cast",
-                                color      = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                style      = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.height(12.dp))
+                            // Meta row: rating • year • duration • views
                             Row(
-                                modifier              = Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(MASpacing.sm)
                             ) {
-                                uiState.cast.take(10).forEach { member ->
-                                    CastCard(member)
+                                Icon(Icons.Default.Star, contentDescription = null, tint = MAGold, modifier = Modifier.size(15.dp))
+                                Text(
+                                    text       = String.format("%.1f", movie.rating),
+                                    color      = MAGold,
+                                    style      = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                MetaDot()
+                                Text(movie.year.toString(), color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
+                                MetaDot()
+                                Text(movie.durationFormatted, color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
+                                MetaDot()
+                                Icon(Icons.Default.Visibility, contentDescription = null, tint = MATextSecondary, modifier = Modifier.size(13.dp))
+                                Text("${movie.views}", color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
+                            }
+
+                            if (movie.genres.isNotEmpty()) {
+                                Spacer(Modifier.height(MASpacing.md))
+                                Row(
+                                    modifier              = Modifier.horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(MASpacing.xs)
+                                ) {
+                                    movie.genres.forEach { genre ->
+                                        Surface(
+                                            shape  = RoundedCornerShape(50),
+                                            color  = Color.Transparent,
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, MABorderSubtle)
+                                        ) {
+                                            Text(
+                                                text     = genre,
+                                                color    = MATextSecondary,
+                                                style    = MaterialTheme.typography.labelSmall,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                        }
 
-                        // ── More Like This ──────────────────────────────────
-                        if (uiState.similarMovies.isNotEmpty()) {
-                            Spacer(Modifier.height(24.dp))
-                            Text(
-                                text       = "More Like This",
-                                color      = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                style      = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            LazyRow(
-                                contentPadding        = PaddingValues(end = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            Spacer(Modifier.height(MASpacing.lg))
+
+                            // ── Expandable description ───────────────────────
+                            ExpandableDescription(movie.description)
+
+                            Spacer(Modifier.height(MASpacing.xl))
+
+                            // ── Primary CTA + compact secondary actions ──────
+                            Row(
+                                modifier              = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(MASpacing.md),
+                                verticalAlignment     = Alignment.CenterVertically
                             ) {
-                                items(uiState.similarMovies) { similar ->
-                                    MovieCard(
-                                        movie   = similar,
-                                        onClick = { onMovieClick(similar.id) }
+                                MAPrimaryButton(
+                                    text    = "Play Now",
+                                    icon    = Icons.Default.PlayArrow,
+                                    onClick = {
+                                        detailViewModel.recordWatched()
+                                        val intent = Intent(context, PlayerActivity::class.java).apply {
+                                            putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
+                                            putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
+                                        }
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                DetailActionButton(
+                                    icon      = if (uiState.inWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    label     = "My List",
+                                    tint      = if (uiState.inWatchlist) MARed else Color.White,
+                                    isLoading = uiState.isWatchlistLoading,
+                                    onClick   = { detailViewModel.toggleWatchlist() }
+                                )
+
+                                DetailActionButton(
+                                    icon    = if (uiState.userReview != null) Icons.Default.Star else Icons.Default.StarBorder,
+                                    label   = if (uiState.userReview != null) "Rated" else "Rate",
+                                    tint    = if (uiState.userReview != null) MAGold else Color.White,
+                                    onClick = { detailViewModel.showRatingDialog() }
+                                )
+
+                                if (movie.trailerUrl != null) {
+                                    DetailActionButton(
+                                        icon    = Icons.Default.PlayCircleOutline,
+                                        label   = "Trailer",
+                                        onClick = {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(movie.trailerUrl))
+                                            context.startActivity(intent)
+                                        }
                                     )
                                 }
                             }
-                        }
 
-                        // ── Reviews ─────────────────────────────────────────
-                        if (uiState.reviews.isNotEmpty()) {
-                            Spacer(Modifier.height(24.dp))
-                            Text(
-                                text       = "Reviews (${uiState.reviews.size})",
-                                color      = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                style      = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            uiState.reviews.take(10).forEach { review ->
-                                val isOwnReview = review.id == uiState.userReview?.id
-                                ReviewCard(
-                                    review   = review,
-                                    onEdit   = if (isOwnReview) { { detailViewModel.showRatingDialog() } } else null,
-                                    onDelete = if (isOwnReview) { { detailViewModel.deleteReview(review.id) } } else null
+                            // ── Cast ──────────────────────────────────────────
+                            if (uiState.cast.isNotEmpty()) {
+                                Spacer(Modifier.height(MASpacing.xxl))
+                                Text(
+                                    text       = "Cast",
+                                    color      = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style      = MaterialTheme.typography.titleMedium
                                 )
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(MASpacing.md))
+                                Row(
+                                    modifier              = Modifier.horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(MASpacing.md)
+                                ) {
+                                    uiState.cast.take(10).forEach { member ->
+                                        CastCard(member)
+                                    }
+                                }
                             }
-                        }
 
-                        Spacer(Modifier.height(40.dp))
+                            // ── More Like This ────────────────────────────────
+                            if (uiState.similarMovies.isNotEmpty()) {
+                                Spacer(Modifier.height(MASpacing.xxl))
+                                Text(
+                                    text       = "More Like This",
+                                    color      = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style      = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(Modifier.height(MASpacing.md))
+                                LazyRow(
+                                    contentPadding        = PaddingValues(end = MASpacing.sm),
+                                    horizontalArrangement = Arrangement.spacedBy(MASpacing.sm)
+                                ) {
+                                    items(uiState.similarMovies) { similar ->
+                                        MovieCard(
+                                            movie   = similar,
+                                            onClick = { onMovieClick(similar.id) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // ── Reviews ───────────────────────────────────────
+                            if (uiState.reviews.isNotEmpty()) {
+                                Spacer(Modifier.height(MASpacing.xxl))
+                                Text(
+                                    text       = "Reviews (${uiState.reviews.size})",
+                                    color      = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style      = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(Modifier.height(MASpacing.md))
+                                uiState.reviews.take(10).forEach { review ->
+                                    val isOwnReview = review.id == uiState.userReview?.id
+                                    ReviewCard(
+                                        review   = review,
+                                        onEdit   = if (isOwnReview) { { detailViewModel.showRatingDialog() } } else null,
+                                        onDelete = if (isOwnReview) { { detailViewModel.deleteReview(review.id) } } else null
+                                    )
+                                    Spacer(Modifier.height(MASpacing.sm))
+                                }
+                            }
+
+                            Spacer(Modifier.height(40.dp))
+                        }
                     }
                 }
             }
         }
 
-        // Back button (always visible)
+        // Back button (always visible, frosted glass style)
         IconButton(
             onClick  = onBackClick,
             modifier = Modifier
                 .statusBarsPadding()
-                .padding(8.dp)
-                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                .padding(MASpacing.md)
+                .size(40.dp)
+                .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint     = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 
@@ -368,39 +379,143 @@ fun DetailScreen(
     }
 }
 
+// ── Small "•" separator used in meta rows ──────────────────────────────────────
+
+@Composable
+private fun MetaDot() {
+    Text("•", color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
+}
+
+// ── Expandable synopsis — collapses long descriptions to 3 lines with a
+// tappable "Read more" / "Show less" affordance instead of always showing
+// the full block of text. ────────────────────────────────────────────────────
+
+@Composable
+private fun ExpandableDescription(description: String) {
+    var expanded by remember { mutableStateOf(false) }
+    var overflowing by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .clickable(enabled = overflowing || expanded) { expanded = !expanded }
+            .animateContentSize(animationSpec = tween(MAMotion.medium))
+    ) {
+        Text(
+            text        = description,
+            style       = MaterialTheme.typography.bodyMedium,
+            color       = MATextSecondary,
+            lineHeight  = MaterialTheme.typography.bodyMedium.lineHeight,
+            maxLines    = if (expanded) Int.MAX_VALUE else 3,
+            overflow    = TextOverflow.Ellipsis,
+            onTextLayout = { result ->
+                if (!expanded && result.hasVisualOverflow) overflowing = true
+            }
+        )
+        if (overflowing) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text       = if (expanded) "Show less" else "Read more",
+                color      = MARed,
+                fontSize   = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+// ── Compact icon+label secondary action (My List, Rate, Trailer) ──────────────
+
+@Composable
+private fun DetailActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: Color = Color.White,
+    isLoading: Boolean = false
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier             = Modifier
+            .width(56.dp)
+            .pressScaleClickable(enabled = !isLoading, onClick = onClick)
+    ) {
+        Box(
+            modifier         = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(MACard),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(color = tint, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+            } else {
+                Icon(imageVector = icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text     = label,
+            color    = MATextSecondary,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 // ── Cast card ─────────────────────────────────────────────────────────────────
 
 @Composable
 private fun CastCard(member: ApiCastMember) {
     Column(
-        modifier            = Modifier.width(72.dp),
+        modifier            = Modifier.width(76.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AsyncImage(
-            model          = member.image?.takeIf { it.isNotBlank() },
-            contentDescription = member.name,
-            contentScale   = ContentScale.Crop,
-            modifier       = Modifier
-                .size(64.dp)
+        Box(
+            modifier         = Modifier
+                .size(68.dp)
                 .clip(CircleShape)
                 .background(MACard)
-        )
-        Spacer(Modifier.height(4.dp))
+                .border(1.dp, MABorderSubtle, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            val image = member.image?.takeIf { it.isNotBlank() }
+            if (image != null) {
+                AsyncImage(
+                    model              = image,
+                    contentDescription = member.name,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    imageVector        = Icons.Default.Person,
+                    contentDescription = member.name,
+                    tint               = MATextSecondary,
+                    modifier           = Modifier.size(28.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         Text(
             text      = member.name,
             color     = Color.White,
             style     = MaterialTheme.typography.labelSmall,
-            maxLines  = 2,
+            maxLines  = 1,
+            overflow  = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            fontSize  = 10.sp
+            modifier  = Modifier.width(76.dp)
         )
         Text(
             text      = member.character,
             color     = MATextSecondary,
-            style     = MaterialTheme.typography.labelSmall,
+            fontSize  = 10.sp,
             maxLines  = 1,
+            overflow  = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            fontSize  = 9.sp
+            modifier  = Modifier.width(76.dp)
         )
     }
 }
@@ -416,16 +531,31 @@ private fun ReviewCard(
     var showMenu by remember { mutableStateOf(false) }
 
     Surface(
-        shape    = RoundedCornerShape(8.dp),
+        shape    = RoundedCornerShape(MARadius.md),
         color    = MACard,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(MASpacing.md)) {
             Row(
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier              = Modifier.fillMaxWidth()
+                verticalAlignment = Alignment.CenterVertically,
+                modifier          = Modifier.fillMaxWidth()
             ) {
+                // Initial-letter avatar
+                Box(
+                    modifier         = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MARed.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text       = review.user.nickname.take(1).uppercase(),
+                        color      = MARed,
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 13.sp
+                    )
+                }
+                Spacer(Modifier.width(MASpacing.sm))
                 Text(
                     text       = review.user.nickname,
                     color      = Color.White,
@@ -433,57 +563,61 @@ private fun ReviewCard(
                     style      = MaterialTheme.typography.bodySmall,
                     modifier   = Modifier.weight(1f)
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = MAGold, modifier = Modifier.size(12.dp))
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text       = "${review.rating}/10",
-                        color      = MAGold,
-                        style      = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    // 3-dot menu shown only for the current user's own review
-                    if (onEdit != null || onDelete != null) {
-                        Box {
-                            // No size() on IconButton — keeps the default 48dp touch target.
-                            // The visual icon is constrained to 16dp inside.
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(
-                                    Icons.Default.MoreVert,
-                                    contentDescription = "Review options",
-                                    tint     = MATextSecondary,
-                                    modifier = Modifier.size(16.dp)
+                Surface(shape = RoundedCornerShape(50), color = MAGold.copy(alpha = 0.14f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier          = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = MAGold, modifier = Modifier.size(11.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            text       = "${review.rating}/10",
+                            color      = MAGold,
+                            style      = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                // 3-dot menu shown only for the current user's own review
+                if (onEdit != null || onDelete != null) {
+                    Box {
+                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Review options",
+                                tint     = MATextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded         = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            if (onEdit != null) {
+                                DropdownMenuItem(
+                                    text        = { Text("Edit") },
+                                    onClick     = { showMenu = false; onEdit() },
+                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                                 )
                             }
-                            DropdownMenu(
-                                expanded          = showMenu,
-                                onDismissRequest  = { showMenu = false }
-                            ) {
-                                if (onEdit != null) {
-                                    DropdownMenuItem(
-                                        text         = { Text("Edit") },
-                                        onClick      = { showMenu = false; onEdit() },
-                                        leadingIcon  = { Icon(Icons.Default.Edit, contentDescription = null) }
-                                    )
-                                }
-                                if (onDelete != null) {
-                                    DropdownMenuItem(
-                                        text        = { Text("Delete", color = MARed) },
-                                        onClick     = { showMenu = false; onDelete() },
-                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MARed) }
-                                    )
-                                }
+                            if (onDelete != null) {
+                                DropdownMenuItem(
+                                    text        = { Text("Delete", color = MARed) },
+                                    onClick     = { showMenu = false; onDelete() },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MARed) }
+                                )
                             }
                         }
                     }
                 }
             }
             if (!review.comment.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    text  = review.comment,
-                    color = MATextSecondary,
-                    style = MaterialTheme.typography.bodySmall
+                    text     = review.comment,
+                    color    = MATextSecondary,
+                    style    = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 42.dp)
                 )
             }
         }
@@ -505,6 +639,7 @@ private fun RatingDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor   = MACard,
+        shape            = RoundedCornerShape(MARadius.lg),
         title = {
             Text("Rate this movie", color = Color.White, fontWeight = FontWeight.Bold)
         },
@@ -541,6 +676,7 @@ private fun RatingDialog(
                         focusedBorderColor = MARed,
                         unfocusedBorderColor = MATextSecondary
                     ),
+                    shape        = RoundedCornerShape(MARadius.sm),
                     maxLines     = 4,
                     modifier     = Modifier.fillMaxWidth()
                 )
@@ -549,6 +685,7 @@ private fun RatingDialog(
         confirmButton = {
             Button(
                 onClick = { onSubmit(selectedRating, comment.takeIf { it.isNotBlank() }) },
+                shape   = RoundedCornerShape(MARadius.sm),
                 colors  = ButtonDefaults.buttonColors(containerColor = MARed)
             ) {
                 Text("Submit")
@@ -561,4 +698,3 @@ private fun RatingDialog(
         }
     )
 }
-
