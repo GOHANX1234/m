@@ -44,8 +44,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.mna.streaming.ui.components.LabelBadge
 import com.mna.streaming.ui.components.MAEmptyState
 import com.mna.streaming.ui.components.MAErrorState
@@ -498,7 +500,10 @@ private fun SearchResultCard(
     ) {
         Box {
             AsyncImage(
-                model              = result.posterUrl,
+                model              = ImageRequest.Builder(LocalContext.current)
+                    .data(result.posterUrl)
+                    .crossfade(200)
+                    .build(),
                 contentDescription = result.title,
                 contentScale       = ContentScale.Crop,
                 modifier           = Modifier
