@@ -267,7 +267,8 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             ActorMoviesScreen(
                 actorName    = actorName,
                 onBackClick  = { navController.popBackStack() },
-                onMovieClick = { movieId -> navController.navigate(Screen.Detail.createRoute(movieId)) }
+                onMovieClick = { movieId -> navController.navigate(Screen.Detail.createRoute(movieId)) },
+                onAnimeClick = { animeId -> navController.navigate(Screen.AnimeDetail.createRoute(animeId)) }
             )
         }
     }
