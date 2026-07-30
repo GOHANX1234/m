@@ -147,6 +147,18 @@ class SearchViewModel(
     }
 
     // ── Search history ────────────────────────────────────────────────────────
+    //
+    // Writes go through [MAApplication.appScope] rather than [viewModelScope].
+    // This screen's ViewModel is scoped to its nav back-stack entry and is
+    // cleared — cancelling viewModelScope and everything running in it — the
+    // moment the user backs out of Search. A history write is very often
+    // still in flight at exactly that moment (search settles → commit →
+    // user immediately taps back), so a viewModelScope-scoped write would
+    // get cancelled before it reached disk, leaving history permanently
+    // empty on the next visit despite every search "succeeding" on screen.
+    // appScope lives for the process lifetime, so the write always lands.
+    // The visible uiState is still updated synchronously/optimistically so
+    // the UI reacts instantly without waiting on the DataStore round-trip.
 
     private fun loadHistory() {
         viewModelScope.launch {
@@ -165,9 +177,18 @@ class SearchViewModel(
     private fun commitToHistory(query: String) {
         val trimmed = query.trim()
         if (trimmed.length < 2) return
-        viewModelScope.launch {
+
+        // Optimistic UI update — de-dupe case-insensitively and cap exactly
+        // like LocalProfileStore.addSearchHistoryItem, so the in-memory list
+        // never drifts from what actually gets persisted.
+        _uiState.update { state ->
+            val updated = (listOf(trimmed) + state.history.filterNot { it.equals(trimmed, ignoreCase = true) })
+                .take(LocalProfileStore.MAX_SEARCH_HISTORY)
+            state.copy(history = updated)
+        }
+
+        MAApplication.appScope.launch {
             localProfileStore.addSearchHistoryItem(trimmed)
-            _uiState.update { it.copy(history = localProfileStore.getSearchHistory()) }
         }
     }
 
@@ -178,16 +199,16 @@ class SearchViewModel(
     }
 
     fun removeHistoryItem(query: String) {
-        viewModelScope.launch {
+        _uiState.update { it.copy(history = it.history.filterNot { term -> term.equals(query, ignoreCase = true) }) }
+        MAApplication.appScope.launch {
             localProfileStore.removeSearchHistoryItem(query)
-            _uiState.update { it.copy(history = localProfileStore.getSearchHistory()) }
         }
     }
 
     fun clearHistory() {
-        viewModelScope.launch {
+        _uiState.update { it.copy(history = emptyList()) }
+        MAApplication.appScope.launch {
             localProfileStore.clearSearchHistory()
-            _uiState.update { it.copy(history = emptyList()) }
         }
     }
 
