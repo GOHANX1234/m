@@ -3,6 +3,8 @@ package com.mna.streaming.navigation
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -23,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -321,35 +324,41 @@ private fun MainScreen(
             )
         }
 
-        // ── Floating pill nav bar ──────────────────────────────────────────────
+        // ── Floating pill nav bar — compact, spring-driven for a tactile,
+        // "butter smooth" feel instead of the previous linear tween motion.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 14.dp)
         ) {
             Surface(
                 shape    = RoundedCornerShape(50),
-                color    = MASurface,
+                color    = MASurface.copy(alpha = 0.94f),
                 modifier = Modifier.shadow(
-                    elevation    = 20.dp,
+                    elevation    = 14.dp,
                     shape        = RoundedCornerShape(50),
                     ambientColor = MARed.copy(alpha = 0.10f),
                     spotColor    = MARed.copy(alpha = 0.18f)
                 )
             ) {
                 Row(
-                    modifier              = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier              = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
                     MainTab.entries.forEach { tab ->
                         val selected = selectedTab == tab
                         val pillColor by animateColorAsState(
-                            targetValue = if (selected) MARed.copy(alpha = 0.15f)
+                            targetValue = if (selected) MARed.copy(alpha = 0.16f)
                                           else          androidx.compose.ui.graphics.Color.Transparent,
-                            animationSpec = tween(220),
+                            animationSpec = spring(dampingRatio = 0.8f, stiffness = 380f),
                             label = "navPillColor"
+                        )
+                        val iconScale by animateFloatAsState(
+                            targetValue   = if (selected) 1f else 0.9f,
+                            animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+                            label         = "navIconScale"
                         )
                         Surface(
                             onClick = { selectedTab = tab },
@@ -358,10 +367,10 @@ private fun MainScreen(
                         ) {
                             Row(
                                 modifier              = Modifier.padding(
-                                    horizontal = if (selected) 18.dp else 14.dp,
-                                    vertical   = 10.dp
+                                    horizontal = if (selected) 15.dp else 11.dp,
+                                    vertical   = 8.dp
                                 ),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment     = Alignment.CenterVertically
                             ) {
                                 Icon(
@@ -369,19 +378,24 @@ private fun MainScreen(
                                                         else           tab.unselectedIcon,
                                     contentDescription = tab.label,
                                     tint               = if (selected) MARed else MATextSecondary,
-                                    modifier           = Modifier.size(22.dp)
+                                    modifier           = Modifier
+                                        .size(19.dp)
+                                        .graphicsLayer {
+                                            scaleX = iconScale
+                                            scaleY = iconScale
+                                        }
                                 )
                                 AnimatedVisibility(
                                     visible = selected,
-                                    enter   = fadeIn(tween(220)) +
-                                              expandHorizontally(tween(220)),
-                                    exit    = fadeOut(tween(160)) +
-                                              shrinkHorizontally(tween(160))
+                                    enter   = fadeIn(spring(stiffness = 300f)) +
+                                              expandHorizontally(spring(dampingRatio = 0.75f, stiffness = 350f)),
+                                    exit    = fadeOut(tween(120)) +
+                                              shrinkHorizontally(tween(120))
                                 ) {
                                     Text(
                                         text       = tab.label,
                                         color      = MARed,
-                                        fontSize   = 13.sp,
+                                        fontSize   = 12.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
