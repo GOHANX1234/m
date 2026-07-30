@@ -673,7 +673,7 @@ private fun HeroBanner(
 @Composable
 fun SeriesCard(series: ApiAnime, onClick: () -> Unit) {
     MediaPosterCard(
-        posterUrl = series.posterUrl,
+        posterUrl = series.posterUrl.orEmpty(),
         title     = series.title,
         onClick   = onClick,
         rating    = series.rating.takeIf { it > 0 },
