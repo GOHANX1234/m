@@ -20,9 +20,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mna.streaming.data.model.Movie
-import com.mna.streaming.ui.home.MovieCard
+import com.mna.streaming.ui.components.MediaPosterCard
+import com.mna.streaming.ui.search.SearchResult
 import com.mna.streaming.ui.theme.MADark
+import com.mna.streaming.ui.theme.MAPurple
 import com.mna.streaming.ui.theme.MARed
 import com.mna.streaming.ui.theme.MASurface
 import com.mna.streaming.ui.theme.MATextSecondary
@@ -32,7 +33,8 @@ import com.mna.streaming.ui.theme.MATextSecondary
 fun ActorMoviesScreen(
     actorName:    String,
     onBackClick:  () -> Unit,
-    onMovieClick: (String) -> Unit
+    onMovieClick: (String) -> Unit,
+    onAnimeClick: (String) -> Unit
 ) {
     val viewModel: ActorMoviesViewModel = viewModel(
         key     = actorName,
@@ -128,7 +130,7 @@ fun ActorMoviesScreen(
                     }
                 }
 
-                uiState.noCastData && uiState.movies.isEmpty() -> {
+                uiState.noCastData && uiState.items.isEmpty() -> {
                     // The API didn't include cast in list responses for this actor.
                     Column(
                         modifier            = Modifier
@@ -159,7 +161,7 @@ fun ActorMoviesScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text      = "No movies found in the current library for this actor.",
+                            text      = "No titles found in the current library for this actor.",
                             color     = MATextSecondary,
                             style     = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center
@@ -169,15 +171,16 @@ fun ActorMoviesScreen(
 
                 else -> {
                     Column {
-                        // Movie count header
+                        // Title count header
                         Text(
-                            text     = "${uiState.movies.size} movie${if (uiState.movies.size != 1) "s" else ""}",
+                            text     = "${uiState.items.size} title${if (uiState.items.size != 1) "s" else ""}",
                             color    = MATextSecondary,
                             style    = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
 
-                        // 3-column poster grid
+                        // 3-column poster grid — mixes movies and anime/web-series results,
+                        // routed to the right detail screen by result type.
                         LazyVerticalGrid(
                             columns             = GridCells.Fixed(3),
                             contentPadding      = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -185,10 +188,28 @@ fun ActorMoviesScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier            = Modifier.fillMaxSize()
                         ) {
-                            items(uiState.movies) { movie ->
-                                MovieCard(
-                                    movie   = movie,
-                                    onClick = { onMovieClick(movie.id) }
+                            items(uiState.items, key = { it.id }) { result ->
+                                val badgeLabel = when {
+                                    result is SearchResult.AnimeItem && result.anime.type == "series" -> "SERIES"
+                                    result is SearchResult.AnimeItem -> "ANIME"
+                                    else -> "MOVIE"
+                                }
+                                val badgeColor = when (badgeLabel) {
+                                    "ANIME"  -> MARed
+                                    "SERIES" -> MAPurple
+                                    else     -> Color(0xFF333340)
+                                }
+                                MediaPosterCard(
+                                    posterUrl  = result.posterUrl,
+                                    title      = result.title,
+                                    onClick    = {
+                                        when (result) {
+                                            is SearchResult.MovieItem -> onMovieClick(result.id)
+                                            is SearchResult.AnimeItem -> onAnimeClick(result.id)
+                                        }
+                                    },
+                                    badgeText  = badgeLabel,
+                                    badgeColor = badgeColor
                                 )
                             }
                         }
