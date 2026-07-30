@@ -231,29 +231,33 @@ fun DetailScreen(
 
                             Spacer(Modifier.height(MASpacing.xl))
 
-                            // ── Primary CTA + compact secondary actions ──────
+                            // ── Primary CTA — full-width ─────────────────────
+                            MAPrimaryButton(
+                                text    = "Play Now",
+                                icon    = Icons.Default.PlayArrow,
+                                onClick = {
+                                    detailViewModel.recordWatched()
+                                    val intent = Intent(context, PlayerActivity::class.java).apply {
+                                        putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
+                                        putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
+                                    }
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                height   = 54.dp
+                            )
+
+                            Spacer(Modifier.height(MASpacing.md))
+
+                            // ── Secondary actions — equal-weight columns ──────
                             Row(
                                 modifier              = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(MASpacing.md),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment     = Alignment.CenterVertically
                             ) {
-                                MAPrimaryButton(
-                                    text    = "Play Now",
-                                    icon    = Icons.Default.PlayArrow,
-                                    onClick = {
-                                        detailViewModel.recordWatched()
-                                        val intent = Intent(context, PlayerActivity::class.java).apply {
-                                            putExtra(PlayerActivity.EXTRA_MOVIE_ID, movie.id)
-                                            putExtra(PlayerActivity.EXTRA_TITLE,    movie.title)
-                                        }
-                                        context.startActivity(intent)
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
-
                                 DetailActionButton(
                                     icon      = if (uiState.inWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                    label     = "My List",
+                                    label     = if (uiState.inWatchlist) "In List" else "My List",
                                     tint      = if (uiState.inWatchlist) MARed else Color.White,
                                     isLoading = uiState.isWatchlistLoading,
                                     onClick   = { detailViewModel.toggleWatchlist() }
@@ -275,6 +279,9 @@ fun DetailScreen(
                                             context.startActivity(intent)
                                         }
                                     )
+                                } else {
+                                    // Keep row balanced when no trailer
+                                    Spacer(Modifier.width(56.dp))
                                 }
                             }
 
