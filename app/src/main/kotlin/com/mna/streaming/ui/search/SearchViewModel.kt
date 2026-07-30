@@ -79,7 +79,17 @@ class SearchViewModel(
 
     init {
         loadHistory()
-        loadDiscoverContent()
+        // Show cached "recently added" content instantly if we have a fresh-enough
+        // copy — the Search screen's ViewModel is recreated on every visit (it's
+        // scoped to the nav back-stack entry), so without this every re-open would
+        // re-run 3 network calls before anything appears, which reads as "laggy"
+        // on a slow connection.
+        val cached = DiscoverCache.get()
+        if (cached != null) {
+            _uiState.update { it.copy(discover = cached) }
+        } else {
+            loadDiscoverContent()
+        }
     }
 
     // ── Discover — recently added content shown before the user types ────────
@@ -96,21 +106,43 @@ class SearchViewModel(
                 val anime  = animeDeferred.await()
                 val series = seriesDeferred.await()
 
-                _uiState.update {
-                    it.copy(
-                        discover = DiscoverContent(
-                            movies    = movies,
-                            anime     = anime,
-                            webSeries = series,
-                            isLoading = false
-                        )
-                    )
-                }
+                val content = DiscoverContent(
+                    movies    = movies,
+                    anime     = anime,
+                    webSeries = series,
+                    isLoading = false
+                )
+                DiscoverCache.set(content)
+                _uiState.update { it.copy(discover = content) }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(discover = it.discover.copy(isLoading = false, error = e.message ?: "Failed to load"))
                 }
             }
+        }
+    }
+
+    /**
+     * Process-lifetime cache for the "recently added" rails, keyed by nothing
+     * (single global entry) since the content is the same for every user.
+     * Lives in a companion object rather than a repository so it survives the
+     * Search screen's ViewModel being recreated on every visit, without
+     * introducing a broader caching layer other screens don't have yet.
+     */
+    private object DiscoverCache {
+        private const val TTL_MS = 5 * 60 * 1000L
+        private var content: DiscoverContent? = null
+        private var fetchedAtMs: Long = 0L
+
+        fun get(): DiscoverContent? {
+            val snapshot = content ?: return null
+            if (System.currentTimeMillis() - fetchedAtMs > TTL_MS) return null
+            return snapshot
+        }
+
+        fun set(newContent: DiscoverContent) {
+            content = newContent
+            fetchedAtMs = System.currentTimeMillis()
         }
     }
 
@@ -198,6 +230,14 @@ class SearchViewModel(
                         results     = combined,
                         hasSearched = true
                     )
+                }
+
+                // Save automatically once a search actually settles on results —
+                // most people glance at the results grid without ever tapping the
+                // keyboard's search action or a result, so relying only on those
+                // explicit signals left history permanently empty in practice.
+                if (combined.isNotEmpty()) {
+                    commitToHistory(query)
                 }
             } catch (e: Exception) {
                 _uiState.update {
