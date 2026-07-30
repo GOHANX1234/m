@@ -283,6 +283,35 @@ class AnimeRepository(private val apiClient: ApiClient) {
         results
     }
 
+    /**
+     * Returns anime/web-series titles that feature [actorName] in the cast.
+     *
+     * Mirrors [MovieRepository.getMoviesForActor] — the "Top Actors" rail on
+     * Home merges cast from movies *and* web series (see HomeViewModel), so an
+     * actor tapped from that rail may only ever appear in a series, never a
+     * movie. Without this, tapping such an actor always landed on "No movies
+     * found" because only the movie catalogue was ever searched.
+     */
+    suspend fun getSeriesForActor(actorName: String): List<ApiAnime> =
+        withContext(Dispatchers.IO) {
+            val animeBatch = runCatching {
+                service.getAnime(type = "anime", sort = "latest", limit = 50).series
+            }.getOrDefault(emptyList())
+            val seriesBatch = runCatching {
+                service.getWebSeries(sort = "latest", limit = 50).series
+            }.getOrDefault(emptyList())
+
+            val seen = mutableSetOf<String>()
+            (animeBatch + seriesBatch)
+                .filter { seen.add(it.id) }
+                .filter { anime ->
+                    anime.cast.orEmpty().any {
+                        it.name.equals(actorName, ignoreCase = true)
+                    }
+                }
+                .also { results -> results.forEach { animeCache[it.id] = it } }
+        }
+
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private data class ErrorBody(val error: String = "")
