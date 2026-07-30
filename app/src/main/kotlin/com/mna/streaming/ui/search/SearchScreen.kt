@@ -1,16 +1,21 @@
 package com.mna.streaming.ui.search
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -26,9 +32,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.mna.streaming.ui.components.LabelBadge
+import com.mna.streaming.ui.components.MAEmptyState
+import com.mna.streaming.ui.components.MAErrorState
+import com.mna.streaming.ui.theme.MABorderSubtle
+import com.mna.streaming.ui.theme.MACard
 import com.mna.streaming.ui.theme.MADark
+import com.mna.streaming.ui.theme.MAMotion
+import com.mna.streaming.ui.theme.MARadius
 import com.mna.streaming.ui.theme.MARed
+import com.mna.streaming.ui.theme.MASpacing
 import com.mna.streaming.ui.theme.MATextSecondary
+import com.mna.streaming.ui.theme.pressScaleClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,21 +66,30 @@ fun SearchScreen(
             .background(MADark)
             .statusBarsPadding()
     ) {
-        // ── Top bar ────────────────────────────────────────────────────────────
+        // ── Top bar — frosted back button + capsule search field ────────────────
         Row(
             modifier          = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = MASpacing.md, vertical = MASpacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
+            IconButton(
+                onClick  = onBackClick,
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(MACard, CircleShape)
+            ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.White
+                    tint     = Color.White,
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
+            Spacer(Modifier.width(MASpacing.sm))
+
+            val isFocused = remember { mutableStateOf(false) }
             TextField(
                 value         = uiState.query,
                 onValueChange = { searchViewModel.onQueryChanged(it) },
@@ -90,32 +114,37 @@ fun SearchScreen(
                     }
                 },
                 colors        = TextFieldDefaults.colors(
-                    focusedContainerColor   = Color(0xFF1E1E24),
-                    unfocusedContainerColor = Color(0xFF1E1E24),
+                    focusedContainerColor   = MACard,
+                    unfocusedContainerColor = MACard,
                     focusedIndicatorColor   = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor             = Color.White,
+                    cursorColor             = MARed,
                     focusedTextColor        = Color.White,
                     unfocusedTextColor      = Color.White
                 ),
-                shape         = RoundedCornerShape(8.dp),
+                shape         = RoundedCornerShape(50),
                 modifier      = Modifier
                     .weight(1f)
-                    .padding(end = 8.dp)
+                    .border(
+                        width = 1.dp,
+                        color = if (isFocused.value) MARed.copy(alpha = 0.55f) else MABorderSubtle,
+                        shape = RoundedCornerShape(50)
+                    )
                     .focusRequester(focusRequester)
+                    .onFocusChanged { isFocused.value = it.isFocused }
             )
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(MASpacing.xs))
 
         when {
             // Empty query — prompt
             uiState.query.isBlank() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text  = "Type at least 2 characters to search",
-                        color = MATextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
+                    MAEmptyState(
+                        icon        = Icons.Default.Search,
+                        title       = "Find something to watch",
+                        description = "Search across every movie and anime title"
                     )
                 }
             }
@@ -134,10 +163,9 @@ fun SearchScreen(
             // Network error
             uiState.error != null -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text  = uiState.error ?: "Search failed",
-                        color = MATextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
+                    MAErrorState(
+                        message = uiState.error ?: "Search failed",
+                        onRetry = { searchViewModel.onQueryChanged(uiState.query) }
                     )
                 }
             }
@@ -145,41 +173,38 @@ fun SearchScreen(
             // No results after search
             uiState.hasSearched && uiState.results.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text  = "No results for",
-                            color = MATextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text       = "\"${uiState.query}\"",
-                            color      = Color.White,
-                            style      = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    MAEmptyState(
+                        icon        = Icons.Default.SearchOff,
+                        title       = "No results for \"${uiState.query}\"",
+                        description = "Try a different title, genre or spelling"
+                    )
                 }
             }
 
             // Results grid
             uiState.results.isNotEmpty() -> {
-                LazyVerticalGrid(
-                    columns               = GridCells.Fixed(3),
-                    contentPadding        = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement   = Arrangement.spacedBy(12.dp),
-                    modifier              = Modifier.fillMaxSize()
+                AnimatedVisibility(
+                    visible = true,
+                    enter   = fadeIn(tween(MAMotion.medium))
                 ) {
-                    items(uiState.results, key = { it.id }) { result ->
-                        SearchResultCard(
-                            result = result,
-                            onClick = {
-                                when (result) {
-                                    is SearchResult.MovieItem -> onMovieClick(result.id)
-                                    is SearchResult.AnimeItem -> onAnimeClick(result.id)
+                    LazyVerticalGrid(
+                        columns               = GridCells.Fixed(3),
+                        contentPadding        = PaddingValues(horizontal = MASpacing.md, vertical = MASpacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(MASpacing.sm),
+                        verticalArrangement   = Arrangement.spacedBy(MASpacing.md),
+                        modifier              = Modifier.fillMaxSize()
+                    ) {
+                        items(uiState.results, key = { it.id }) { result ->
+                            SearchResultCard(
+                                result = result,
+                                onClick = {
+                                    when (result) {
+                                        is SearchResult.MovieItem -> onMovieClick(result.id)
+                                        is SearchResult.AnimeItem -> onAnimeClick(result.id)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -197,57 +222,50 @@ private fun SearchResultCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .pressScaleClickable(pressedScale = 0.95f, onClick = onClick)
     ) {
         Box {
             AsyncImage(
-                model             = result.posterUrl,
+                model              = result.posterUrl,
                 contentDescription = result.title,
-                contentScale      = ContentScale.Crop,
-                modifier          = Modifier
+                contentScale       = ContentScale.Crop,
+                modifier           = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF1A1A22))
+                    .clip(RoundedCornerShape(MARadius.sm))
+                    .background(MACard)
+                    .border(1.dp, MABorderSubtle, RoundedCornerShape(MARadius.sm))
             )
 
             // Pill badge — "Anime", "Series", or "Movie"
             val badgeLabel = when {
-                result is SearchResult.AnimeItem && result.anime.type == "series" -> "Series"
-                result is SearchResult.AnimeItem -> "Anime"
-                else -> "Movie"
+                result is SearchResult.AnimeItem && result.anime.type == "series" -> "SERIES"
+                result is SearchResult.AnimeItem -> "ANIME"
+                else -> "MOVIE"
             }
             val badgeColor = when (badgeLabel) {
-                "Anime"  -> MARed.copy(alpha = 0.85f)
-                "Series" -> Color(0xFF6A0DAD).copy(alpha = 0.85f)
-                else     -> Color(0xFF333340).copy(alpha = 0.85f)
+                "ANIME"  -> MARed
+                "SERIES" -> Color(0xFF6A0DAD)
+                else     -> Color(0xFF333340)
             }
-            Surface(
-                shape    = RoundedCornerShape(4.dp),
+            LabelBadge(
+                text     = badgeLabel,
                 color    = badgeColor,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(4.dp)
-            ) {
-                Text(
-                    text       = badgeLabel,
-                    color      = Color.White,
-                    fontSize   = 8.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier   = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                )
-            }
+                    .padding(6.dp)
+            )
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
 
         Text(
-            text     = result.title,
-            color    = Color.White,
-            fontSize = 11.sp,
+            text       = result.title,
+            color      = Color.White,
+            fontSize   = 11.sp,
             fontWeight = FontWeight.Medium,
-            maxLines  = 2,
-            overflow  = TextOverflow.Ellipsis
+            maxLines   = 2,
+            overflow   = TextOverflow.Ellipsis
         )
 
         result.year?.let { year ->
