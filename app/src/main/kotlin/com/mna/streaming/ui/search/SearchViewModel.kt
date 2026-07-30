@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mna.streaming.MAApplication
+import com.mna.streaming.data.LocalProfileStore
 import com.mna.streaming.data.repository.AnimeRepository
 import com.mna.streaming.data.repository.MovieRepository
 import com.mna.streaming.data.model.Movie
@@ -19,7 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Unified search result — either a movie or an anime series. */
+/** Unified search result — either a movie or an anime/web-series title. */
 sealed class SearchResult {
     abstract val id: String
     abstract val title: String
@@ -41,23 +42,124 @@ sealed class SearchResult {
     }
 }
 
+/**
+ * "Recently added" rails shown on the idle (empty query) state — the top 10
+ * newest movies, anime, and web series, so the screen is never blank.
+ */
+data class DiscoverContent(
+    val movies: List<Movie> = emptyList(),
+    val anime: List<ApiAnime> = emptyList(),
+    val webSeries: List<ApiAnime> = emptyList(),
+    val isLoading: Boolean = true,
+    val error: String? = null
+) {
+    val isEmpty: Boolean get() = movies.isEmpty() && anime.isEmpty() && webSeries.isEmpty()
+}
+
 data class SearchUiState(
     val query: String = "",
     val isSearching: Boolean = false,
     val results: List<SearchResult> = emptyList(),
     val hasSearched: Boolean = false,   // true after first search attempt
-    val error: String? = null
+    val error: String? = null,
+    val history: List<String> = emptyList(),
+    val discover: DiscoverContent = DiscoverContent()
 )
 
 class SearchViewModel(
     private val movieRepository: MovieRepository,
-    private val animeRepository: AnimeRepository
+    private val animeRepository: AnimeRepository,
+    private val localProfileStore: LocalProfileStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     private var searchJob: Job? = null
+
+    init {
+        loadHistory()
+        loadDiscoverContent()
+    }
+
+    // ── Discover — recently added content shown before the user types ────────
+
+    fun loadDiscoverContent() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(discover = it.discover.copy(isLoading = true, error = null)) }
+            try {
+                val moviesDeferred = async { movieRepository.getLatest(10) }
+                val animeDeferred  = async { animeRepository.getAnime(sort = "latest", limit = 10).series }
+                val seriesDeferred = async { animeRepository.getWebSeries(sort = "latest", limit = 10).series }
+
+                val movies = moviesDeferred.await()
+                val anime  = animeDeferred.await()
+                val series = seriesDeferred.await()
+
+                _uiState.update {
+                    it.copy(
+                        discover = DiscoverContent(
+                            movies    = movies,
+                            anime     = anime,
+                            webSeries = series,
+                            isLoading = false
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(discover = it.discover.copy(isLoading = false, error = e.message ?: "Failed to load"))
+                }
+            }
+        }
+    }
+
+    // ── Search history ────────────────────────────────────────────────────────
+
+    private fun loadHistory() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(history = localProfileStore.getSearchHistory()) }
+        }
+    }
+
+    /**
+     * Persist the current query as a history entry. Called on explicit intent
+     * signals only (keyboard "search" submission, tapping a result) rather
+     * than on every debounced keystroke, so history reads as a list of real
+     * searches instead of partial words typed along the way.
+     */
+    fun commitCurrentQueryToHistory() = commitToHistory(_uiState.value.query)
+
+    private fun commitToHistory(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) return
+        viewModelScope.launch {
+            localProfileStore.addSearchHistoryItem(trimmed)
+            _uiState.update { it.copy(history = localProfileStore.getSearchHistory()) }
+        }
+    }
+
+    /** User tapped a past search term — re-run it and bump it back to the top. */
+    fun searchFromHistory(query: String) {
+        onQueryChanged(query)
+        commitToHistory(query)
+    }
+
+    fun removeHistoryItem(query: String) {
+        viewModelScope.launch {
+            localProfileStore.removeSearchHistoryItem(query)
+            _uiState.update { it.copy(history = localProfileStore.getSearchHistory()) }
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch {
+            localProfileStore.clearSearchHistory()
+            _uiState.update { it.copy(history = emptyList()) }
+        }
+    }
+
+    // ── Live search ───────────────────────────────────────────────────────────
 
     fun onQueryChanged(query: String) {
         _uiState.update { it.copy(query = query, error = null) }
@@ -111,15 +213,26 @@ class SearchViewModel(
 
     fun clearQuery() {
         searchJob?.cancel()
-        _uiState.update { SearchUiState() }
+        // Reset only the search-related fields — keep history/discover intact
+        // so clearing the field doesn't force a reload flicker.
+        _uiState.update {
+            it.copy(
+                query       = "",
+                isSearching = false,
+                results     = emptyList(),
+                hasSearched = false,
+                error       = null
+            )
+        }
     }
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 SearchViewModel(
-                    movieRepository = MAApplication.movieRepository,
-                    animeRepository = MAApplication.animeRepository
+                    movieRepository   = MAApplication.movieRepository,
+                    animeRepository   = MAApplication.animeRepository,
+                    localProfileStore = MAApplication.localProfileStore
                 )
             }
         }
