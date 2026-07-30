@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.mna.streaming.ui.theme.MACard
 import com.mna.streaming.ui.theme.MARadius
 import com.mna.streaming.ui.theme.MARed
@@ -68,7 +70,10 @@ fun MediaPosterCard(
                 .background(MACard)
         ) {
             AsyncImage(
-                model = posterUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(posterUrl)
+                    .crossfade(200)
+                    .build(),
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
