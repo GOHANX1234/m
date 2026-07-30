@@ -4,12 +4,15 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 // ── Local data models ─────────────────────────────────────────────────────────
 
@@ -64,18 +67,34 @@ class LocalProfileStore(context: Context) {
     private val dataStore = context.profileDataStore
     private val gson      = Gson()
 
+    /**
+     * [dataStore]'s data flow with corruption/IO failures downgraded to an
+     * empty preferences set instead of throwing. Without this, a single
+     * corrupted read (e.g. an interrupted write from a low-battery kill)
+     * would throw out of the collecting coroutine — on an uncaught
+     * viewModelScope launch that reads as "history/watchlist silently never
+     * loads" rather than a visible crash.
+     */
+    private val safeData = dataStore.data.catch { e ->
+        if (e is IOException) emit(emptyPreferences()) else throw e
+    }
+
     companion object {
         private val KEY_WATCH_HISTORY   = stringPreferencesKey("watch_history")
         private val KEY_WATCHLIST       = stringPreferencesKey("watchlist")
         private val KEY_SEARCH_HISTORY  = stringPreferencesKey("search_history")
         private const val MAX_HISTORY        = 50   // keep newest 50 watch-history entries
-        private const val MAX_SEARCH_HISTORY = 12   // keep newest 12 search terms
+
+        // Not private: SearchViewModel mirrors this cap when optimistically
+        // updating its in-memory state, so the UI never drifts from what
+        // actually gets persisted.
+        const val MAX_SEARCH_HISTORY = 12   // keep newest 12 search terms
     }
 
     // ── Watch History ─────────────────────────────────────────────────────────
 
     suspend fun getWatchHistory(): List<LocalWatchEntry> {
-        val json = dataStore.data.map { it[KEY_WATCH_HISTORY] }.firstOrNull()
+        val json = safeData.map { it[KEY_WATCH_HISTORY] }.firstOrNull()
             ?: return emptyList()
         return try {
             val type = object : TypeToken<List<LocalWatchEntry>>() {}.type
@@ -99,7 +118,7 @@ class LocalProfileStore(context: Context) {
     // ── Watchlist ─────────────────────────────────────────────────────────────
 
     suspend fun getWatchlist(): List<LocalWatchlistItem> {
-        val json = dataStore.data.map { it[KEY_WATCHLIST] }.firstOrNull()
+        val json = safeData.map { it[KEY_WATCHLIST] }.firstOrNull()
             ?: return emptyList()
         return try {
             val type = object : TypeToken<List<LocalWatchlistItem>>() {}.type
@@ -129,7 +148,7 @@ class LocalProfileStore(context: Context) {
     // purely a typing-shortcut convenience, like a browser's address bar.
 
     suspend fun getSearchHistory(): List<String> {
-        val json = dataStore.data.map { it[KEY_SEARCH_HISTORY] }.firstOrNull()
+        val json = safeData.map { it[KEY_SEARCH_HISTORY] }.firstOrNull()
             ?: return emptyList()
         return try {
             val type = object : TypeToken<List<String>>() {}.type
