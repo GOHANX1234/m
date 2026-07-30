@@ -81,27 +81,10 @@ fun HomeScreen(
         }
     }
 
-    // Solid backdrop rises as the user scrolls down from the hero.
-    val topBarAlpha by remember {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 1f
-            else (listState.firstVisibleItemScrollOffset / 260f).coerceIn(0f, 1f)
-        }
-    }
-    // Gradient scrim fades out as the solid backdrop fades in — so the
-    // logo and icons always stay readable regardless of hero brightness.
-    val topGradientAlpha by remember {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 0f
-            else (1f - listState.firstVisibleItemScrollOffset / 180f).coerceIn(0f, 1f)
-        }
-    }
-    // Hairline divider animates in once content slides behind the bar.
-    val dividerAlpha by animateFloatAsState(
-        targetValue   = topBarAlpha,
-        animationSpec = tween(MAMotion.medium),
-        label         = "dividerAlpha"
-    )
+    // Gradient scrim stays constant regardless of scroll position — the bar
+    // itself is always fully transparent, this is just for logo/icon legibility
+    // against the hero art directly behind it.
+    val topGradientAlpha = 1f
 
     Box(
         modifier = Modifier
@@ -318,28 +301,10 @@ fun HomeScreen(
                     )
             )
 
-            // Layer 2 — Frosted dark backdrop (slightly translucent even when
-            // fully scrolled, so it never feels like a hard opaque wall).
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .height(56.dp)
-                    .background(MADark.copy(alpha = topBarAlpha * 0.96f))
-            )
+            // Bar stays fully transparent at all scroll positions — only the
+            // persistent gradient scrim above keeps the logo/icons readable.
 
-            // Layer 3 — Hairline bottom divider: fades in as content slides
-            // behind the bar, giving a clean depth separation cue.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 56.dp)
-                    .height(0.5.dp)
-                    .background(Color.White.copy(alpha = dividerAlpha * 0.13f))
-            )
-
-            // Layer 4 — Bar content.
+            // Layer 2 — Bar content.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
