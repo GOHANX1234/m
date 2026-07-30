@@ -2,6 +2,7 @@ package com.mna.streaming.ui.home
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -80,14 +81,27 @@ fun HomeScreen(
         }
     }
 
-    // Top bar gains a solid backdrop once the user scrolls past the hero,
-    // instead of sitting on a hard-coded scrim the whole time.
+    // Solid backdrop rises as the user scrolls down from the hero.
     val topBarAlpha by remember {
         derivedStateOf {
             if (listState.firstVisibleItemIndex > 0) 1f
             else (listState.firstVisibleItemScrollOffset / 260f).coerceIn(0f, 1f)
         }
     }
+    // Gradient scrim fades out as the solid backdrop fades in — so the
+    // logo and icons always stay readable regardless of hero brightness.
+    val topGradientAlpha by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) 0f
+            else (1f - listState.firstVisibleItemScrollOffset / 180f).coerceIn(0f, 1f)
+        }
+    }
+    // Hairline divider animates in once content slides behind the bar.
+    val dividerAlpha by animateFloatAsState(
+        targetValue   = topBarAlpha,
+        animationSpec = tween(MAMotion.medium),
+        label         = "dividerAlpha"
+    )
 
     Box(
         modifier = Modifier
@@ -280,32 +294,104 @@ fun HomeScreen(
         }
 
         // ── Top bar overlay ────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .background(MADark.copy(alpha = topBarAlpha))
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+
+            // Layer 1 — Persistent gradient scrim.
+            // Always present so the logo stays readable over any hero image.
+            // Gracefully fades away as the solid backdrop rises.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.Black.copy(
+                                    alpha = 0.65f * topGradientAlpha + 0.18f
+                                ),
+                                0.6f to Color.Black.copy(
+                                    alpha = 0.15f * topGradientAlpha
+                                ),
+                                1.0f to Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            // Layer 2 — Frosted dark backdrop (slightly translucent even when
+            // fully scrolled, so it never feels like a hard opaque wall).
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .height(56.dp)
+                    .background(MADark.copy(alpha = topBarAlpha * 0.96f))
+            )
+
+            // Layer 3 — Hairline bottom divider: fades in as content slides
+            // behind the bar, giving a clean depth separation cue.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 56.dp)
+                    .height(0.5.dp)
+                    .background(Color.White.copy(alpha = dividerAlpha * 0.13f))
+            )
+
+            // Layer 4 — Bar content.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .statusBarsPadding()
+                    .height(56.dp)
+                    .padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
+                // Logo — warm red glow keeps it vivid in every lighting
+                // condition, whether over a bright hero image or a dark surface.
                 Text(
                     text          = "M&A",
                     color         = MARed,
-                    fontSize      = 26.sp,
+                    fontSize      = 27.sp,
                     fontWeight    = FontWeight.Black,
-                    letterSpacing = 2.sp
+                    letterSpacing = 1.sp,
+                    style         = TextStyle(
+                        shadow = Shadow(
+                            color      = MARed.copy(alpha = 0.55f),
+                            offset     = Offset(0f, 0f),
+                            blurRadius = 18f
+                        )
+                    )
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onSearchClick) {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
+
+                // Action icons — 44 dp touch targets, tighter spacing.
+                Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick  = onSearchClick,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint               = Color.White,
+                            modifier           = Modifier.size(22.dp)
+                        )
                     }
-                    IconButton(onClick = onProfileClick) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = "Profile", tint = Color.White)
+                    IconButton(
+                        onClick  = onProfileClick,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.AccountCircle,
+                            contentDescription = "Profile",
+                            tint               = Color.White,
+                            modifier           = Modifier.size(22.dp)
+                        )
                     }
                 }
             }
