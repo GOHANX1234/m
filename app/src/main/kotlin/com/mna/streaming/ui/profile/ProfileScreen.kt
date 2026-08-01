@@ -589,8 +589,8 @@ private fun WatchlistTab(
                         val meta = buildString {
                             if (item.releaseYear > 0) append(item.releaseYear)
                             if (item.rating > 0) {
-                                if (isNotEmpty()) append(" â€¢ ")
-                                append("â˜… %.1f".format(item.rating))
+                                if (isNotEmpty()) append(" \u2022 ")
+                                append("\u2605 %.1f".format(item.rating))
                             }
                         }
 
@@ -776,19 +776,35 @@ private fun RequestsTab(
             }
         }
 
-        // Extended Floating Action Button
-        ExtendedFloatingActionButton(
+        // Compact Request Content Button
+        Surface(
             onClick = onNewRequest,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 36.dp, start = 20.dp, end = 20.dp)
+                .padding(bottom = 28.dp)
                 .pressScaleClickable(onClick = onNewRequest),
-            containerColor = MARed,
+            color = MARed,
             contentColor = Color.White,
-            shape = RoundedCornerShape(16.dp),
-            icon = { Icon(Icons.Default.Add, contentDescription = null) },
-            text = { Text("Request Content", fontWeight = FontWeight.Bold, fontSize = 14.sp) }
-        )
+            shape = RoundedCornerShape(20.dp),
+            shadowElevation = 6.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Request Content",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
+            }
+        }
     }
 }
 
