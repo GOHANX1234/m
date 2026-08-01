@@ -53,6 +53,7 @@ import com.mna.streaming.ui.components.MAEmptyState
 import com.mna.streaming.ui.components.MAErrorState
 import com.mna.streaming.ui.components.MediaCardSkeleton
 import com.mna.streaming.ui.components.MediaPosterCard
+import com.mna.streaming.ui.theme.*
 import com.mna.streaming.ui.components.SectionHeader
 import com.mna.streaming.ui.theme.MABorderSubtle
 import com.mna.streaming.ui.theme.MACard
@@ -88,7 +89,7 @@ fun SearchScreen(
             .background(MADark)
             .statusBarsPadding()
     ) {
-        // ── Top bar — frosted back button + compact capsule search field ────────
+        // â”€â”€ Top bar â€” frosted back button + compact capsule search field â”€â”€â”€â”€â”€â”€â”€â”€
         Row(
             modifier          = Modifier
                 .fillMaxWidth()
@@ -127,7 +128,7 @@ fun SearchScreen(
         }
 
         when {
-            // Empty query — search history + recently added rails
+            // Empty query â€” search history + recently added rails
             uiState.query.isBlank() -> {
                 SearchIdleContent(
                     uiState          = uiState,
@@ -144,7 +145,7 @@ fun SearchScreen(
             uiState.query.length == 1 -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text  = "Keep typing…",
+                        text  = "Keep typingâ€¦",
                         color = MATextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -204,9 +205,9 @@ fun SearchScreen(
     }
 }
 
-// ── Compact capsule search field ─────────────────────────────────────────────
+// â”€â”€ Compact capsule search field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
-// A hand-rolled BasicTextField pill instead of a Material TextField — Material's
+// A hand-rolled BasicTextField pill instead of a Material TextField â€” Material's
 // default is ~56dp tall with fixed internal padding it won't shrink below.
 // This one is a deliberately smaller, tighter 42dp so the search bar reads as
 // a focused input rather than a big empty box.
@@ -252,7 +253,7 @@ private fun CompactSearchField(
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
                 Text(
-                    text     = "Search movies, anime & series…",
+                    text     = "Search movies, anime & seriesâ€¦",
                     color    = MATextTertiary,
                     fontSize = 14.sp
                 )
@@ -285,7 +286,7 @@ private fun CompactSearchField(
     }
 }
 
-// ── Idle state — search history + "recently added" rails ─────────────────────
+// â”€â”€ Idle state â€” search history + "recently added" rails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun SearchIdleContent(
@@ -301,7 +302,7 @@ private fun SearchIdleContent(
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
 
-        // ── Recent searches ──────────────────────────────────────────────────
+        // â”€â”€ Recent searches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (uiState.history.isNotEmpty()) {
             item(key = "history_header") {
                 SectionHeader(
@@ -320,7 +321,7 @@ private fun SearchIdleContent(
             item(key = "history_spacer") { Spacer(Modifier.height(MASpacing.md)) }
         }
 
-        // ── Recently added rails ─────────────────────────────────────────────
+        // â”€â”€ Recently added rails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         when {
             discover.isLoading && discover.isEmpty -> {
                 item(key = "skeleton_movies") { DiscoverRailSkeleton("New Movies") }
@@ -397,7 +398,7 @@ private fun SearchIdleContent(
     }
 }
 
-/** A single past search term — tap to re-run, tap the "x" to forget it. */
+/** A single past search term â€” tap to re-run, tap the "x" to forget it. */
 @Composable
 private fun SearchHistoryRow(
     query: String,
@@ -486,7 +487,7 @@ private fun DiscoverRailSkeleton(title: String) {
     }
 }
 
-// ── Unified search result card ─────────────────────────────────────────────────
+// â”€â”€ Unified search result card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun SearchResultCard(
@@ -514,16 +515,16 @@ private fun SearchResultCard(
                     .border(1.dp, MABorderSubtle, RoundedCornerShape(MARadius.sm))
             )
 
-            // Pill badge — "Anime", "Series", or "Movie"
+            // Pill badge â€” "Anime", "Series", or "Movie"
             val badgeLabel = when {
                 result is SearchResult.AnimeItem && result.anime.type == "series" -> "SERIES"
                 result is SearchResult.AnimeItem -> "ANIME"
                 else -> "MOVIE"
             }
             val badgeColor = when (badgeLabel) {
-                "ANIME"  -> MARed
-                "SERIES" -> MAPurple
-                else     -> Color(0xFF333340)
+                "ANIME"  -> MAAccentAnime
+                "SERIES" -> MAAccentSeries
+                else     -> MAAccentMovie
             }
             LabelBadge(
                 text     = badgeLabel,
