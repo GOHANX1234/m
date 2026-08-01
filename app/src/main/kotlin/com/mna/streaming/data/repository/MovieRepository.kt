@@ -35,7 +35,7 @@ class MovieRepository(
     private val baseUrl = apiClient.baseUrl.trimEnd('/')
     private val gson    = Gson()
 
-    // ── Discovery ─────────────────────────────────────────────────────────────
+    // â”€â”€ Discovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Fetch movies sorted by newest-added. Used for "New Releases" section. */
     suspend fun getLatest(limit: Int = 20): List<Movie> = withContext(Dispatchers.IO) {
@@ -77,7 +77,7 @@ class MovieRepository(
             Pair(featured, categories)
         }
 
-    // ── Movie detail ──────────────────────────────────────────────────────────
+    // â”€â”€ Movie detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Full metadata for a single movie including cast. */
     suspend fun getMovieById(id: String): Movie = withContext(Dispatchers.IO) {
@@ -89,7 +89,7 @@ class MovieRepository(
         service.getMovieById(id).movie
     }
 
-    // ── Streaming — via C security layer ─────────────────────────────────────
+    // â”€â”€ Streaming â€” via C security layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Returns the third-party embed URL for a movie.
@@ -116,7 +116,7 @@ class MovieRepository(
             ?: throw Exception("No embed URL in response")
     }
 
-    // ── Watchlist ─────────────────────────────────────────────────────────────
+    // â”€â”€ Watchlist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun getWatchlistStatus(movieId: String): Boolean = withContext(Dispatchers.IO) {
         service.getWatchlistStatus(targetType = "Movie", targetId = movieId).inWatchlist
@@ -125,8 +125,8 @@ class MovieRepository(
     /**
      * Toggle saved state on the server. Returns the new [inWatchlist] value.
      *
-     * @param movie Full [Movie] object — used to update the local watchlist store
-     *              so the Profile → Watchlist tab stays in sync without a server
+     * @param movie Full [Movie] object â€” used to update the local watchlist store
+     *              so the Profile â†’ Watchlist tab stays in sync without a server
      *              list endpoint.
      */
     suspend fun toggleWatchlist(movie: Movie): Boolean = withContext(Dispatchers.IO) {
@@ -157,7 +157,7 @@ class MovieRepository(
         service.toggleWatchlist(WatchlistToggleRequest(targetId = movieId)).inWatchlist
     }
 
-    // ── View tracking ─────────────────────────────────────────────────────────
+    // â”€â”€ View tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Record a unique view for this movie. The server deduplicates per user,
@@ -167,12 +167,12 @@ class MovieRepository(
         runCatching {
             service.trackView(ViewsRequest(targetId = movieId))
         }
-        // Best-effort — swallow any error; don't break playback flow.
+        // Best-effort â€” swallow any error; don't break playback flow.
     }
 
-    // ── Watch history ─────────────────────────────────────────────────────────
+    // â”€â”€ Watch history â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /** Save playback position. Call every 15–30 s during playback. */
+    /** Save playback position. Call every 15â€“30 s during playback. */
     suspend fun saveProgress(movieId: String, progressSeconds: Int) =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -185,18 +185,19 @@ class MovieRepository(
     /**
      * Record that the user started watching [movie] locally.
      * Upserts an entry in the on-device watch-history store so the
-     * Profile → Watch History tab always reflects recent activity,
+     * Profile â†’ Watch History tab always reflects recent activity,
      * even though there is no server-side GET /api/watch-history.
      */
     suspend fun saveLocalWatchHistory(movie: Movie) = withContext(Dispatchers.IO) {
         runCatching {
             localProfileStore.upsertWatchEntry(
                 LocalWatchEntry(
-                    movieId   = movie.id,
-                    title     = movie.title,
-                    posterUrl = movie.posterUrl,
-                    targetType = "Movie",
-                    updatedAt  = System.currentTimeMillis()
+                    movieId     = movie.id,
+                    title       = movie.title,
+                    posterUrl   = movie.posterUrl,
+                    targetType  = "Movie",
+                    contentType = "movie",
+                    updatedAt   = System.currentTimeMillis()
                 )
             )
         }
@@ -210,7 +211,7 @@ class MovieRepository(
     suspend fun getLocalWatchlist(): List<LocalWatchlistItem> =
         withContext(Dispatchers.IO) { localProfileStore.getWatchlist() }
 
-    // ── Profile — server-side reads (new endpoints) ───────────────────────────
+    // â”€â”€ Profile â€” server-side reads (new endpoints) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Fetch full user profile + accurate server-side stats from /api/me. */
     suspend fun getMe() = withContext(Dispatchers.IO) {
@@ -228,28 +229,31 @@ class MovieRepository(
             val content = entry.content ?: return@mapNotNull null
             when (entry.targetType) {
                 "Movie" -> LocalWatchEntry(
-                    movieId    = content.id,
-                    title      = content.title ?: "Unknown",
-                    posterUrl  = content.posterUrl ?: "",
-                    targetType = "Movie",
-                    updatedAt  = parseIso(entry.updatedAt)
+                    movieId     = content.id,
+                    title       = content.title ?: "Unknown",
+                    posterUrl   = content.posterUrl ?: "",
+                    targetType  = "Movie",
+                    contentType = content.type ?: "movie",
+                    updatedAt   = parseIso(entry.updatedAt)
                 )
                 "Episode" -> {
                     val seriesTitle = content.seriesInfo?.title ?: "Unknown Series"
                     val label = buildString {
                         if ((content.season ?: 0) > 0) append("S${content.season} ")
-                        if ((content.episodeNumber ?: 0) > 0) append("E${content.episodeNumber} · ")
+                        if ((content.episodeNumber ?: 0) > 0) append("E${content.episodeNumber} Â· ")
                         append(seriesTitle)
                     }
                     // seriesId: prefer the populated seriesInfo id, fall back to the raw series ref
                     val seriesId = content.seriesInfo?.id ?: content.series
+                    val contentType = content.seriesInfo?.type ?: content.type ?: "series"
                     LocalWatchEntry(
-                        movieId    = content.id,
-                        title      = label,
-                        posterUrl  = content.seriesInfo?.posterUrl ?: "",
-                        targetType = "Episode",
-                        seriesId   = seriesId,
-                        updatedAt  = parseIso(entry.updatedAt)
+                        movieId     = content.id,
+                        title       = label,
+                        posterUrl   = content.seriesInfo?.posterUrl ?: "",
+                        targetType  = "Episode",
+                        seriesId    = seriesId,
+                        contentType = contentType,
+                        updatedAt   = parseIso(entry.updatedAt)
                     )
                 }
                 else -> null
@@ -277,7 +281,7 @@ class MovieRepository(
         }
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
+    // â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Parse an ISO-8601 timestamp string to epoch milliseconds. */
     private fun parseIso(iso: String): Long = try {
@@ -292,7 +296,7 @@ class MovieRepository(
         } catch (_: Exception) { System.currentTimeMillis() }
     }
 
-    // ── Reviews ───────────────────────────────────────────────────────────────
+    // â”€â”€ Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun getReviews(movieId: String): List<ApiReview> = withContext(Dispatchers.IO) {
         service.getReviews(targetType = "Movie", targetId = movieId).reviews
@@ -316,7 +320,7 @@ class MovieRepository(
         service.deleteReview(reviewId)
     }
 
-    // ── Content requests ──────────────────────────────────────────────────────
+    // â”€â”€ Content requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Returns all requests the current user has ever submitted, newest first. */
     suspend fun getRequests() = withContext(Dispatchers.IO) {
@@ -349,7 +353,7 @@ class MovieRepository(
         }
     }
 
-    // ── Actors ────────────────────────────────────────────────────────────────
+    // â”€â”€ Actors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Builds a "Top Actors" list from popular movies.
@@ -377,7 +381,7 @@ class MovieRepository(
                         actors += ActorItem(
                             name  = cast.name,
                             image = cast.image?.takeIf { it.isNotBlank() },
-                            rank  = 0   // placeholder — reassigned below after shuffle
+                            rank  = 0   // placeholder â€” reassigned below after shuffle
                         )
                     }
                 }
@@ -436,21 +440,21 @@ class MovieRepository(
             }.getOrDefault(emptyList())
         }
 
-    // ── Search ────────────────────────────────────────────────────────────────
+    // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun search(query: String): List<Movie> = withContext(Dispatchers.IO) {
         if (query.length < 2) return@withContext emptyList()
         service.search(query).movies.map { it.toMovie() }
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
+    // â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private data class ErrorBody(val error: String = "")
 
     /**
      * Read the JSON error body from a non-2xx Retrofit response.
      *
-     * Retrofit throws [HttpException] on 4xx/5xx — the body is NOT parsed
+     * Retrofit throws [HttpException] on 4xx/5xx â€” the body is NOT parsed
      * into the declared return type.  This helper reads the raw error body
      * string and extracts the `"error"` field so the real server message
      * reaches the UI instead of the unhelpful "HTTP 400" status string.
