@@ -45,6 +45,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.mna.streaming.MAApplication
 import com.mna.streaming.data.LocalWatchEntry
 import com.mna.streaming.data.LocalWatchlistItem
 import com.mna.streaming.network.models.ContentRequest
@@ -527,7 +528,11 @@ private fun WatchHistoryTab(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(history, key = { it.movieId }) { entry ->
-                        val typeLower = entry.contentType?.lowercase() ?: ""
+                        val cachedSeriesType = entry.seriesId?.let { sId ->
+                            runCatching { MAApplication.animeRepository.getCachedAnime(sId)?.type }.getOrNull()
+                        }
+                        val rawType = entry.contentType ?: cachedSeriesType
+                        val typeLower = rawType?.lowercase() ?: ""
                         val (badgeText, badgeColor, isSeriesOrAnime) = when {
                             typeLower == "anime" -> Triple("ANIME", MAAccentAnime, true)
                             typeLower == "series" -> Triple("SERIES", MAAccentSeries, true)
@@ -536,9 +541,13 @@ private fun WatchHistoryTab(
                             else -> Triple("MOVIE", MAAccentMovie, false)
                         }
 
+                        val cleanTitle = entry.title
+                            .replace("Ã‚Â·", "\u2022")
+                            .replace("Ã‚", "")
+
                         MediaRowCard(
                             posterUrl = entry.posterUrl,
-                            title = entry.title,
+                            title = cleanTitle,
                             badge = badgeText,
                             badgeColor = badgeColor,
                             meta = if (entry.updatedAt > 0) "Watched ${formatEpochDate(entry.updatedAt)}" else "",
