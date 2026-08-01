@@ -3,7 +3,7 @@ package com.mna.streaming.network.models
 import com.google.gson.annotations.SerializedName
 import com.mna.streaming.data.model.Movie
 
-// ── Raw API shapes (matches the JSON exactly) ────────────────────────────────
+// â”€â”€ Raw API shapes (matches the JSON exactly) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class ApiGenre(
     @SerializedName("_id") val id: String,
@@ -51,7 +51,7 @@ data class ApiMovie(
     )
 }
 
-// ── List/pagination ───────────────────────────────────────────────────────────
+// â”€â”€ List/pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class MoviesResponse(
     val movies: List<ApiMovie>,
@@ -60,23 +60,23 @@ data class MoviesResponse(
     val totalPages: Int
 )
 
-// ── Detail ────────────────────────────────────────────────────────────────────
+// â”€â”€ Detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class MovieDetailResponse(
     val movie: ApiMovie
 )
 
-// ── Search ────────────────────────────────────────────────────────────────────
+// â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class SearchResponse(
     val movies: List<ApiMovie>
 )
 
-// ── Streaming ─────────────────────────────────────────────────────────────────
+// â”€â”€ Streaming â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class EmbedResponse(val url: String)
 
-// ── Watchlist ─────────────────────────────────────────────────────────────────
+// â”€â”€ Watchlist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class WatchlistStatusResponse(val inWatchlist: Boolean)
 
@@ -85,7 +85,7 @@ data class WatchlistToggleRequest(
     val targetId: String
 )
 
-// ── Views ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class ViewsRequest(
     val targetType: String = "Movie",
@@ -97,7 +97,7 @@ data class ViewsResponse(
     val counted: Boolean? = null
 )
 
-// ── Watch history ─────────────────────────────────────────────────────────────
+// â”€â”€ Watch history â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class WatchHistoryRequest(
     val targetType: String = "Movie",
@@ -107,7 +107,7 @@ data class WatchHistoryRequest(
 
 data class WatchHistoryResponse(val ok: Boolean)
 
-// ── /api/me ───────────────────────────────────────────────────────────────────
+// â”€â”€ /api/me â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class MeUser(
     val id: String,
@@ -128,13 +128,14 @@ data class MeResponse(
     val stats: MeStats
 )
 
-// ── /api/watch-history (GET) ──────────────────────────────────────────────────
+// â”€â”€ /api/watch-history (GET) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class ApiSeriesInfo(
     @SerializedName("_id") val id: String,
     val title: String,
     val slug: String?,
-    val posterUrl: String?
+    val posterUrl: String?,
+    val type: String? = null
 )
 
 data class ApiHistoryContent(
@@ -149,7 +150,8 @@ data class ApiHistoryContent(
     val episodeNumber: Int?,
     val season: Int?,
     val series: String?,
-    val seriesInfo: ApiSeriesInfo?
+    val seriesInfo: ApiSeriesInfo?,
+    val type: String? = null
 )
 
 data class ApiHistoryEntry(
@@ -169,7 +171,7 @@ data class WatchHistoryListResponse(
     val totalPages: Int
 )
 
-// ── /api/watchlist/all ────────────────────────────────────────────────────────
+// â”€â”€ /api/watchlist/all â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class ApiWatchlistGenre(
     @SerializedName("_id") val id: String,
@@ -206,7 +208,7 @@ data class WatchlistAllResponse(
     val totalPages: Int
 )
 
-// ── Reviews ───────────────────────────────────────────────────────────────────
+// â”€â”€ Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class ReviewRequest(
     val targetType: String = "Movie",
