@@ -37,7 +37,7 @@ import com.mna.streaming.ui.theme.shimmer
 /**
  * Shared poster-card renderer used internally by `MovieCard`, `AnimeCard`,
  * `SeriesCard` and search-result cards so every rectangular poster in the
- * app — Home rails, Anime grid, Search results, Actor filmography — shares
+ * app â€” Home rails, Anime grid, Search results, Actor filmography â€” shares
  * identical corners, badge placement, scrim and press feedback. Callers keep
  * their own public composable names/signatures; only the pixels come from
  * here.
@@ -57,10 +57,9 @@ fun MediaPosterCard(
     showTitle: Boolean = true,
     titleMaxLines: Int = 1
 ) {
+    val cardModifier = if (width != Dp.Unspecified) modifier.width(width) else modifier
     Column(
-        modifier = modifier
-            .width(width)
-            .pressScaleClickable(onClick = onClick)
+        modifier = cardModifier.pressScaleClickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
@@ -140,7 +139,7 @@ fun MediaPosterCard(
 
 /**
  * Shimmering placeholder shaped like [MediaPosterCard], shown in horizontal
- * rails and grids while the first page of data is loading — reads as
+ * rails and grids while the first page of data is loading â€” reads as
  * "actively fetching" instead of a blank screen or a single spinner.
  */
 @Composable
