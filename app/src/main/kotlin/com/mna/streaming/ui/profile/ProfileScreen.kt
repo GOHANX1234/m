@@ -3,31 +3,41 @@ package com.mna.streaming.ui.profile
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,7 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Status Color & Formatting Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private val StatusPending    = Color(0xFFF59E0B)
 private val StatusInProgress = Color(0xFF3B82F6)
@@ -68,7 +78,7 @@ private fun statusLabel(status: String): String = when (status) {
 }
 
 private fun formatEpochDate(epochMillis: Long): String = try {
-    SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(epochMillis))
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(epochMillis))
 } catch (_: Exception) { "" }
 
 private fun formatJoinDate(iso: String): String = try {
@@ -78,15 +88,10 @@ private fun formatJoinDate(iso: String): String = try {
         ?: SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
             .also { it.timeZone = java.util.TimeZone.getTimeZone("UTC") }
             .parse(iso)
-        ?: return "—"
+        ?: return "â€”"
     SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(date)
-} catch (_: Exception) { "—" }
+} catch (_: Exception) { "â€”" }
 
-/**
- * The About screen must remain usable even if an older APK/native library is
- * installed during an update. NativeApiSecurity is the primary source; the
- * fallback is only for a mismatched or unavailable native bridge.
- */
 private fun nativeAboutValue(read: () -> String, fallback: String): String =
     try {
         read().takeIf { it.isNotBlank() } ?: fallback
@@ -94,11 +99,6 @@ private fun nativeAboutValue(read: () -> String, fallback: String): String =
         fallback
     }
 
-/**
- * Opens a fixed, native-provided Telegram URL. The URL is intentionally not
- * accepted from UI input, and the browser fallback keeps the row usable when
- * the Telegram app is not installed.
- */
 private fun openTelegram(context: Context, url: String) {
     try {
         context.startActivity(
@@ -107,12 +107,11 @@ private fun openTelegram(context: Context, url: String) {
             }
         )
     } catch (_: android.content.ActivityNotFoundException) {
-        // A normal browser should handle the HTTPS Telegram URL. If the device
-        // has no compatible activity, leave the profile screen unchanged.
+        // Fallback or leave unchanged if no handler
     }
 }
 
-// ── Root screen ───────────────────────────────────────────────────────────────
+// â”€â”€ Main Profile Screen Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,9 +127,7 @@ fun ProfileScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNewRequestSheet by remember { mutableStateOf(false) }
 
-    // Refresh local data every time this screen enters the RESUMED state so
-    // watch-history and watchlist entries written during the same session appear
-    // immediately without the user having to navigate away and back.
+    // Refresh history and watchlist whenever screen becomes RESUMED
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -139,117 +136,172 @@ fun ProfileScreen(
         }
     }
 
-    Scaffold(
-        containerColor = MADark,
-        contentColor   = Color.White,
-        topBar = {
-            Row(
-                modifier          = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector        = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint               = Color.White
-                    )
-                }
-                Text(
-                    text       = "Profile",
-                    color      = Color.White,
-                    fontSize   = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    ) { innerPadding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MADark)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .statusBarsPadding()
         ) {
+            // Glassmorphic Top Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MACard)
+                        .border(1.dp, MABorderSubtle, CircleShape)
+                        .pressScaleClickable(onClick = onBackClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                Text(
+                    text = "My Profile",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Refresh Button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MACard)
+                        .border(1.dp, MABorderSubtle, CircleShape)
+                        .pressScaleClickable {
+                            viewModel.loadUserAndStats()
+                            viewModel.loadHistory()
+                            viewModel.loadWatchlist()
+                            viewModel.loadRequests()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh",
+                        tint = MATextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Hero Profile Header Card
             ProfileHeader(
-                user           = uiState.user,
-                watchedCount   = uiState.watchedCount,
-                watchlistCount = uiState.watchlistCount
+                user = uiState.user,
+                watchedCount = uiState.watchedCount,
+                watchlistCount = uiState.watchlistCount,
+                requestsCount = uiState.requests.size
             )
 
-            val tabs = listOf("Watch History", "Watchlist", "Requests", "About")
+            // Segmented Scrollable Tab Bar
+            val tabs = remember(uiState.watchHistory, uiState.watchlist, uiState.requests) {
+                listOf(
+                    "History${if (uiState.watchHistory.isNotEmpty()) " (${uiState.watchHistory.size})" else ""}",
+                    "Watchlist${if (uiState.watchlist.isNotEmpty()) " (${uiState.watchlist.size})" else ""}",
+                    "Requests${if (uiState.requests.isNotEmpty()) " (${uiState.requests.size})" else ""}",
+                    "About & Settings"
+                )
+            }
+
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor   = MASurface,
-                contentColor     = MARed,
-                edgePadding      = 0.dp,
-                indicator        = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier  = Modifier
-                            .fillMaxWidth()
-                            .wrapContentSize(Alignment.BottomStart)
-                            .offset(x = tabPositions[selectedTab].left)
-                            .width(tabPositions[selectedTab].width),
-                        color     = MARed,
-                        height    = 2.dp
-                    )
-                },
-                divider          = {
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+                containerColor = MADark,
+                contentColor = Color.White,
+                edgePadding = 16.dp,
+                divider = { HorizontalDivider(color = MABorderSubtle, thickness = 1.dp) },
+                indicator = { tabPositions ->
+                    if (selectedTab < tabPositions.size) {
+                        Box(
+                            modifier = Modifier
+                                .tabIndicatorOffset(tabPositions[selectedTab])
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                .background(MARed)
+                        )
+                    }
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
+                    val active = selectedTab == index
                     Tab(
-                        selected               = selectedTab == index,
-                        onClick                = { selectedTab = index },
-                        selectedContentColor   = Color.White,
-                        unselectedContentColor = MATextSecondary,
-                        modifier               = Modifier.padding(vertical = 2.dp),
+                        selected = active,
+                        onClick = { selectedTab = index },
                         text = {
                             Text(
-                                text       = title,
-                                fontWeight = if (selectedTab == index) FontWeight.SemiBold else FontWeight.Normal,
-                                fontSize   = 13.sp
+                                text = title,
+                                color = if (active) MARedLight else MATextSecondary,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 13.sp
                             )
                         }
                     )
                 }
             }
 
-            when (selectedTab) {
-                0 -> WatchHistoryTab(
-                    history      = uiState.watchHistory,
-                    isLoading    = uiState.isLoadingHistory,
-                    onMovieClick = onMovieClick,
-                    onAnimeClick = onAnimeClick
-                )
-                1 -> WatchlistTab(
-                    watchlist    = uiState.watchlist,
-                    isLoading    = uiState.isLoadingWatchlist,
-                    onMovieClick = onMovieClick,
-                    onAnimeClick = onAnimeClick
-                )
-                2 -> RequestsTab(
-                    uiState         = uiState,
-                    onNewRequest    = { showNewRequestSheet = true },
-                    onCancelRequest = { viewModel.cancelRequest(it) },
-                    onRetry         = { viewModel.loadRequests() }
-                )
-                3 -> AboutTab(
-                    user         = uiState.user,
-                    joinedAt     = uiState.joinedAt,
-                    onSignOut    = onSignOut,
-                    onAdminClick = onAdminClick
-                )
+            Spacer(Modifier.height(8.dp))
+
+            // Crossfade Tab Views
+            Crossfade(
+                targetState = selectedTab,
+                label = "profileTabCrossfade",
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> WatchHistoryTab(
+                        history = uiState.watchHistory,
+                        isLoading = uiState.isLoadingHistory,
+                        onMovieClick = onMovieClick,
+                        onAnimeClick = onAnimeClick
+                    )
+                    1 -> WatchlistTab(
+                        watchlist = uiState.watchlist,
+                        isLoading = uiState.isLoadingWatchlist,
+                        onMovieClick = onMovieClick,
+                        onAnimeClick = onAnimeClick
+                    )
+                    2 -> RequestsTab(
+                        uiState = uiState,
+                        onNewRequest = { showNewRequestSheet = true },
+                        onCancelRequest = { viewModel.cancelRequest(it) },
+                        onRetry = { viewModel.loadRequests() }
+                    )
+                    3 -> AboutTab(
+                        user = uiState.user,
+                        joinedAt = uiState.joinedAt,
+                        onSignOut = onSignOut,
+                        onAdminClick = onAdminClick
+                    )
+                }
             }
         }
     }
 
+    // Modal Sheet for submitting new content requests
     if (showNewRequestSheet) {
         NewRequestSheet(
             isSubmitting = uiState.isSubmitting,
-            submitError  = uiState.submitError,
-            onDismiss    = {
+            submitError = uiState.submitError,
+            onDismiss = {
                 showNewRequestSheet = false
                 viewModel.clearSubmitError()
             },
@@ -262,40 +314,46 @@ fun ProfileScreen(
     }
 }
 
-// ── Profile header ────────────────────────────────────────────────────────────
+// â”€â”€ Profile Header Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ProfileHeader(
     user: SessionUser?,
     watchedCount: Int,
-    watchlistCount: Int
+    watchlistCount: Int,
+    requestsCount: Int
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(
                 Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.0f to MASurface,
-                        0.7f to MASurface.copy(alpha = 0.85f),
-                        1.0f to MADark
+                    listOf(
+                        MACardElevated,
+                        MACard
                     )
                 )
             )
+            .border(1.dp, MABorderSubtle, RoundedCornerShape(16.dp))
+            .padding(18.dp)
     ) {
         Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 20.dp, start = 20.dp, end = 20.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            // Avatar with red ring
+            // Avatar with glowing ring
             Box(
-                modifier         = Modifier
-                    .size(88.dp)
-                    .border(2.dp, MARed, CircleShape)
-                    .padding(3.dp),
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.sweepGradient(
+                            listOf(MARed, MAGold, MARedLight, MARed)
+                        )
+                    )
+                    .padding(2.5.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
@@ -304,90 +362,112 @@ private fun ProfileHeader(
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                listOf(Color(0xFFE50914), Color(0xFF8B0000))
+                                listOf(Color(0xFF2A080C), Color(0xFF121212))
                             )
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text       = user?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                        color      = Color.White,
-                        fontSize   = 36.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            // Name + role badge
-            Row(
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text       = user?.name ?: "",
-                    color      = Color.White,
-                    fontSize   = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                if (user?.role == "admin") {
-                    Surface(
-                        shape  = RoundedCornerShape(4.dp),
-                        color  = MARed.copy(alpha = 0.15f),
-                        border = BorderStroke(1.dp, MARed.copy(alpha = 0.5f))
-                    ) {
+                    if (!user?.image.isNullOrBlank()) {
+                        AsyncImage(
+                            model = user?.image,
+                            contentDescription = user?.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
                         Text(
-                            text          = "Admin",
-                            color         = MARed,
-                            fontSize      = 10.sp,
-                            fontWeight    = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
-                            modifier      = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            text = user?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(10.dp))
+
+            // Nickname + VIP / Admin Badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = user?.name ?: "Guest User",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                val isAdmin = user?.role == "admin"
+                val badgeText = if (isAdmin) "ADMIN" else "VIP MEMBER"
+                val badgeBg = if (isAdmin) MARed.copy(alpha = 0.2f) else MAGold.copy(alpha = 0.15f)
+                val badgeFg = if (isAdmin) MARedLight else MAGold
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeBg)
+                        .border(1.dp, badgeFg.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isAdmin) Icons.Default.Shield else Icons.Default.Star,
+                            contentDescription = null,
+                            tint = badgeFg,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = badgeText,
+                            color = badgeFg,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(2.dp))
 
             Text(
-                text     = user?.email ?: "",
-                color    = MATextSecondary,
-                fontSize = 13.sp
+                text = user?.email ?: "Sign in to sync watchlist",
+                color = MATextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // Stats — single card with divider separating two counts
-            Surface(
-                shape    = RoundedCornerShape(12.dp),
-                color    = MACard,
-                modifier = Modifier.fillMaxWidth()
+            // Quick Stats Row (Watched, Watchlist, Requests)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier              = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 18.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    StatItem(value = watchedCount.toString(), label = "WATCHED")
-
-                    VerticalDivider(
-                        modifier  = Modifier.height(36.dp),
-                        color     = Color.White.copy(alpha = 0.08f),
-                        thickness = 1.dp
-                    )
-
-                    StatItem(value = watchlistCount.toString(), label = "WATCHLIST")
-                }
+                StatItem(value = watchedCount.toString(), label = "WATCHED")
+                VerticalDivider(color = MABorderSubtle, modifier = Modifier.height(28.dp))
+                StatItem(value = watchlistCount.toString(), label = "WATCHLIST")
+                VerticalDivider(color = MABorderSubtle, modifier = Modifier.height(28.dp))
+                StatItem(value = requestsCount.toString(), label = "REQUESTS")
             }
         }
     }
 }
 
-// Inline stat — used inside the header card
 @Composable
 private fun StatItem(value: String, label: String) {
     Column(
@@ -395,23 +475,23 @@ private fun StatItem(value: String, label: String) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text       = value,
-            color      = Color.White,
-            fontSize   = 26.sp,
+            text = value,
+            color = Color.White,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
-            text          = label,
-            color         = MATextSecondary,
-            fontSize      = 10.sp,
-            fontWeight    = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp
+            text = label,
+            color = MATextSecondary,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
         )
     }
 }
 
-// ── Watch History tab ─────────────────────────────────────────────────────────
+// â”€â”€ Watch History Tab Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun WatchHistoryTab(
@@ -423,41 +503,40 @@ private fun WatchHistoryTab(
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             isLoading -> {
-                CircularProgressIndicator(
-                    color    = MARed,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MARed, modifier = Modifier.size(32.dp))
+                }
             }
 
             history.isEmpty() -> {
                 EmptyState(
-                    modifier    = Modifier.align(Alignment.Center),
-                    icon        = Icons.Default.PlayCircleOutline,
-                    title       = "Nothing watched yet",
-                    description = "Tap Play on any title to start your watch history"
+                    icon = Icons.Outlined.History,
+                    title = "No Watch History Yet",
+                    description = "Titles you play will automatically appear here so you can pick up where you left off."
                 )
             }
 
             else -> {
                 LazyColumn(
-                    modifier            = Modifier.fillMaxSize(),
-                    contentPadding      = PaddingValues(vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(history, key = { it.movieId }) { entry ->
-                        val isAnime = entry.targetType == "Episode"
-                        MediaRow(
-                            posterUrl  = entry.posterUrl,
-                            title      = entry.title,
-                            badge      = if (isAnime) "ANIME" else "MOVIE",
+                        val isAnime = entry.targetType == "Episode" || entry.seriesId != null
+                        MediaRowCard(
+                            posterUrl = entry.posterUrl,
+                            title = entry.title,
+                            badge = if (isAnime) "ANIME" else "MOVIE",
                             badgeColor = if (isAnime) MARed else Color(0xFF8B5CF6),
-                            meta       = formatEpochDate(entry.updatedAt),
-                            onClick    = {
+                            meta = if (entry.updatedAt > 0) "Watched ${formatEpochDate(entry.updatedAt)}" else "",
+                            onClick = {
                                 if (isAnime) {
-                                    // Navigate to the parent series, not the episode itself
-                                    val seriesId = entry.seriesId
-                                    if (seriesId != null) onAnimeClick(seriesId)
-                                    // If seriesId is somehow null, do nothing rather than crash
+                                    val seriesId = entry.seriesId ?: entry.movieId
+                                    onAnimeClick(seriesId)
                                 } else {
                                     onMovieClick(entry.movieId)
                                 }
@@ -470,7 +549,7 @@ private fun WatchHistoryTab(
     }
 }
 
-// ── Watchlist tab ─────────────────────────────────────────────────────────────
+// â”€â”€ Watchlist Tab Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun WatchlistTab(
@@ -482,42 +561,47 @@ private fun WatchlistTab(
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             isLoading -> {
-                CircularProgressIndicator(
-                    color    = MARed,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MARed, modifier = Modifier.size(32.dp))
+                }
             }
 
             watchlist.isEmpty() -> {
                 EmptyState(
-                    modifier    = Modifier.align(Alignment.Center),
-                    icon        = Icons.Default.Bookmark,
-                    title       = "Watchlist is empty",
-                    description = "Tap the bookmark icon on any title to save it here"
+                    icon = Icons.Outlined.BookmarkBorder,
+                    title = "Your Watchlist is Empty",
+                    description = "Tap the bookmark icon on any movie or anime to save it for later."
                 )
             }
 
             else -> {
                 LazyColumn(
-                    modifier            = Modifier.fillMaxSize(),
-                    contentPadding      = PaddingValues(vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(watchlist, key = { it.movieId }) { item ->
-                        val isAnime = item.targetType == "anime"
+                        val isAnime = item.targetType == "anime" || item.targetType == "series"
                         val meta = buildString {
                             if (item.releaseYear > 0) append(item.releaseYear)
-                            if (item.rating > 0) append("  ★ ${String.format("%.1f", item.rating)}")
+                            if (item.rating > 0) {
+                                if (isNotEmpty()) append(" â€¢ ")
+                                append("â˜… %.1f".format(item.rating))
+                            }
                         }
-                        MediaRow(
-                            posterUrl  = item.posterUrl,
-                            title      = item.title,
-                            badge      = if (isAnime) "ANIME" else "MOVIE",
+
+                        MediaRowCard(
+                            posterUrl = item.posterUrl,
+                            title = item.title,
+                            badge = if (isAnime) "ANIME" else "MOVIE",
                             badgeColor = if (isAnime) MARed else Color(0xFF8B5CF6),
-                            meta       = meta,
-                            onClick    = {
+                            meta = meta,
+                            onClick = {
                                 if (isAnime) onAnimeClick(item.movieId)
-                                else         onMovieClick(item.movieId)
+                                else onMovieClick(item.movieId)
                             }
                         )
                     }
@@ -527,10 +611,10 @@ private fun WatchlistTab(
     }
 }
 
-// ── Shared media row (used by both lists) ─────────────────────────────────────
+// â”€â”€ Media Row Card Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
-private fun MediaRow(
+private fun MediaRowCard(
     posterUrl: String,
     title: String,
     badge: String,
@@ -538,116 +622,92 @@ private fun MediaRow(
     meta: String,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier          = Modifier
+    Card(
+        modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(MADark)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .pressScaleClickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MACard),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(0.5.dp, MABorderSubtle)
     ) {
-        // Poster
-        AsyncImage(
-            model              = posterUrl,
-            contentDescription = title,
-            contentScale       = ContentScale.Crop,
-            modifier           = Modifier
-                .size(width = 52.dp, height = 72.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(MASurface)
-        )
-
-        Spacer(Modifier.width(14.dp))
-
-        // Text block
-        Column(modifier = Modifier.weight(1f)) {
-            // Badge
-            Surface(
-                shape = RoundedCornerShape(3.dp),
-                color = badgeColor.copy(alpha = 0.15f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Thumbnail Poster
+            Box(
+                modifier = Modifier
+                    .size(width = 54.dp, height = 76.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MACardElevated)
             ) {
-                Text(
-                    text       = badge,
-                    color      = badgeColor,
-                    fontSize   = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp,
-                    modifier   = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                AsyncImage(
+                    model = posterUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(badgeColor)
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = badge,
+                        color = Color.White,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
             }
-            Spacer(Modifier.height(5.dp))
-            Text(
-                text       = title,
-                color      = Color.White,
-                fontWeight = FontWeight.Medium,
-                fontSize   = 15.sp,
-                maxLines   = 2,
-                overflow   = TextOverflow.Ellipsis
-            )
-            if (meta.isNotBlank()) {
-                Spacer(Modifier.height(3.dp))
+
+            // Info Column
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text  = meta,
-                    color = MATextSecondary,
-                    style = MaterialTheme.typography.bodySmall
+                    text = title,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (meta.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = meta,
+                        color = MATextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            // Right Action Arrow Button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MARed.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Open",
+                    tint = MARed,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
-
-        Spacer(Modifier.width(8.dp))
-
-        // Chevron
-        Icon(
-            imageVector        = Icons.AutoMirrored.Filled.ArrowForwardIos,
-            contentDescription = null,
-            tint               = MATextSecondary.copy(alpha = 0.5f),
-            modifier           = Modifier.size(14.dp)
-        )
-    }
-
-    HorizontalDivider(
-        color    = Color.White.copy(alpha = 0.05f),
-        modifier = Modifier.padding(start = 82.dp)  // aligns under the title, not the poster
-    )
-}
-
-// ── Shared empty state ────────────────────────────────────────────────────────
-
-@Composable
-private fun EmptyState(
-    modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String
-) {
-    Column(
-        modifier            = modifier.padding(horizontal = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector        = icon,
-            contentDescription = null,
-            tint               = MATextSecondary.copy(alpha = 0.35f),
-            modifier           = Modifier.size(52.dp)
-        )
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text       = title,
-            color      = MATextSecondary,
-            fontWeight = FontWeight.SemiBold,
-            style      = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text      = description,
-            color     = MATextSecondary.copy(alpha = 0.55f),
-            style     = MaterialTheme.typography.bodySmall,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
     }
 }
 
-// ── Requests tab ──────────────────────────────────────────────────────────────
+// â”€â”€ Requests Tab Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun RequestsTab(
@@ -659,75 +719,77 @@ private fun RequestsTab(
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             uiState.isLoadingRequests -> {
-                CircularProgressIndicator(
-                    color    = MARed,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MARed, modifier = Modifier.size(32.dp))
+                }
             }
 
             uiState.requestsError != null -> {
                 Column(
-                    modifier            = Modifier.align(Alignment.Center),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text  = uiState.requestsError,
+                        text = uiState.requestsError,
                         color = MATextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(12.dp))
-                    TextButton(
+                    Button(
                         onClick = onRetry,
-                        colors  = ButtonDefaults.textButtonColors(contentColor = MARed)
-                    ) { Text("Retry") }
+                        colors = ButtonDefaults.buttonColors(containerColor = MARed)
+                    ) {
+                        Text("Retry", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             uiState.requests.isEmpty() -> {
-                Column(
-                    modifier            = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    EmptyState(
-                        icon        = Icons.Default.Inbox,
-                        title       = "No requests yet",
-                        description = "Tap the button below to ask the admin to add a title"
-                    )
-                }
+                EmptyState(
+                    icon = Icons.Outlined.Inbox,
+                    title = "No Content Requests Yet",
+                    description = "Can't find a movie or anime? Tap the Request button below to let our team know!"
+                )
             }
 
             else -> {
                 LazyColumn(
-                    modifier            = Modifier.fillMaxSize(),
-                    contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 90.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(uiState.requests, key = { it.id }) { request ->
                         RequestCard(
-                            request      = request,
+                            request = request,
                             isCancelling = uiState.cancellingId == request.id,
-                            onCancel     = { onCancelRequest(request.id) }
+                            onCancel = { onCancelRequest(request.id) }
                         )
                     }
-                    item { Spacer(Modifier.height(80.dp)) }
                 }
             }
         }
 
+        // Extended Floating Action Button
         ExtendedFloatingActionButton(
-            onClick        = onNewRequest,
-            modifier       = Modifier
+            onClick = onNewRequest,
+            modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(16.dp)
+                .pressScaleClickable(onClick = onNewRequest),
             containerColor = MARed,
-            contentColor   = Color.White,
-            icon           = { Icon(Icons.Default.Add, contentDescription = null) },
-            text           = { Text("Request", fontWeight = FontWeight.SemiBold) }
+            contentColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            icon = { Icon(Icons.Default.Add, contentDescription = null) },
+            text = { Text("Request Content", fontWeight = FontWeight.Bold, fontSize = 14.sp) }
         )
     }
 }
-
-// ── Request card ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun RequestCard(
@@ -739,122 +801,141 @@ private fun RequestCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape    = RoundedCornerShape(10.dp),
-        colors   = CardDefaults.cardColors(containerColor = MACard)
+        colors = CardDefaults.cardColors(containerColor = MACard),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(0.5.dp, MABorderSubtle)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-
             Row(
-                modifier              = Modifier.fillMaxWidth(),
-                verticalAlignment     = Alignment.Top,
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text       = request.title,
-                        color      = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        style      = MaterialTheme.typography.bodyLarge,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis
+                        text = request.title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.height(5.dp))
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MATextSecondary.copy(alpha = 0.10f)
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MACardElevated)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text     = request.type.replaceFirstChar { it.uppercaseChar() },
-                            color    = MATextSecondary,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            text = request.type.replaceFirstChar { it.uppercaseChar() },
+                            color = MATextSecondary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
                 Spacer(Modifier.width(10.dp))
 
-                Surface(
-                    shape    = RoundedCornerShape(4.dp),
-                    color    = color.copy(alpha = 0.10f),
-                    modifier = Modifier.border(
-                        width = 1.dp,
-                        color = color.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(4.dp)
-                    )
+                // Glowing Status Pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(color.copy(alpha = 0.15f))
+                        .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(
-                        text       = statusLabel(request.status),
-                        color      = color,
-                        fontSize   = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier   = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                        Text(
+                            text = statusLabel(request.status),
+                            color = color,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
             if (!request.note.isNullOrBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text     = request.note,
-                    color    = MATextSecondary,
-                    style    = MaterialTheme.typography.bodySmall,
+                    text = request.note,
+                    color = MATextSecondary,
+                    fontSize = 13.sp,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
+            // Admin response box
             if (!request.adminNote.isNullOrBlank()) {
                 Spacer(Modifier.height(10.dp))
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFF0F1E3A)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF0F1E3A))
+                        .border(1.dp, Color(0xFF1E3A8A), RoundedCornerShape(8.dp))
+                        .padding(10.dp)
                 ) {
                     Row(
-                        modifier              = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 9.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Text(
-                            text       = "Admin:",
-                            color      = Color(0xFF60A5FA),
-                            style      = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold
+                        Icon(
+                            imageVector = Icons.Default.AdminPanelSettings,
+                            contentDescription = null,
+                            tint = Color(0xFF60A5FA),
+                            modifier = Modifier.size(16.dp)
                         )
-                        Text(
-                            text  = request.adminNote,
-                            color = Color(0xFFBFDBFE),
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        Column {
+                            Text(
+                                text = "Admin Response:",
+                                color = Color(0xFF60A5FA),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = request.adminNote,
+                                color = Color(0xFFBFDBFE),
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
 
+            // Cancel Button for Pending Requests
             if (request.status == "pending") {
                 Spacer(Modifier.height(10.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+                HorizontalDivider(color = MABorderSubtle, thickness = 0.5.dp)
                 Row(
-                    modifier              = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     if (isCancelling) {
-                        Box(
-                            modifier         = Modifier.padding(12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color       = MARed,
-                                modifier    = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        }
+                        CircularProgressIndicator(
+                            color = MARed,
+                            modifier = Modifier.padding(8.dp).size(18.dp),
+                            strokeWidth = 2.dp
+                        )
                     } else {
                         TextButton(
                             onClick = onCancel,
-                            colors  = ButtonDefaults.textButtonColors(contentColor = MARed)
+                            colors = ButtonDefaults.textButtonColors(contentColor = MARed)
                         ) {
-                            Text("Cancel Request", fontSize = 13.sp)
+                            Text("Cancel Request", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -863,7 +944,7 @@ private fun RequestCard(
     }
 }
 
-// ── About tab ─────────────────────────────────────────────────────────────────
+// â”€â”€ About & Settings Tab Composable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AboutTab(
@@ -891,193 +972,194 @@ private fun AboutTab(
             fallback = "https://t.me/ClerXin"
         )
     }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier        = Modifier.fillMaxSize(),
-            contentPadding  = PaddingValues(
-                start  = 16.dp,
-                end    = 16.dp,
-                top    = 20.dp,
-                bottom = 32.dp
-            )
-        ) {
-
-            // ── ACCOUNT ───────────────────────────────────────────────────────
-            item {
-                AboutSectionHeader("ACCOUNT")
-                Spacer(Modifier.height(10.dp))
-                Surface(
-                    shape    = RoundedCornerShape(12.dp),
-                    color    = MACard,
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        // ACCOUNT SECTION
+        item {
+            Column {
+                SectionTitle("ACCOUNT DETAILS")
+                Spacer(Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MACard),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(0.5.dp, MABorderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
+                        InfoRow(icon = Icons.Default.Person, label = "Username", value = user?.name ?: "Guest")
+                        AboutDivider()
+                        InfoRow(icon = Icons.Default.Email, label = "Email", value = user?.email ?: "Not signed in")
+                        AboutDivider()
                         InfoRow(
-                            icon  = Icons.Default.Person,
-                            label = "Username",
-                            value = user?.name ?: "—"
+                            icon = Icons.Default.Shield,
+                            label = "Role",
+                            value = if (isAdmin) "Administrator" else "Member",
+                            valueColor = if (isAdmin) MARedLight else Color.White
                         )
-                        AboutRowDivider()
-                        InfoRow(
-                            icon  = Icons.Default.Email,
-                            label = "Email",
-                            value = user?.email ?: "—"
-                        )
-                        AboutRowDivider()
-                        InfoRow(
-                            icon       = Icons.Default.Shield,
-                            label      = "Role",
-                            value      = if (isAdmin) "Administrator" else "Member",
-                            valueColor = if (isAdmin) MARed else Color.White
-                        )
-                        if (joinedAt != null) {
-                            AboutRowDivider()
+                        if (!joinedAt.isNullOrBlank()) {
+                            AboutDivider()
                             InfoRow(
-                                icon  = Icons.Default.CalendarToday,
-                                label = "Joined",
+                                icon = Icons.Default.CalendarToday,
+                                label = "Joined On",
                                 value = formatJoinDate(joinedAt)
                             )
                         }
                     }
                 }
             }
+        }
 
-            // ── ADMINISTRATION (admin only) ───────────────────────────────────
-            if (isAdmin) {
-                item {
-                    Spacer(Modifier.height(24.dp))
-                    AboutSectionHeader("ADMINISTRATION")
-                    Spacer(Modifier.height(10.dp))
-                    Surface(
-                        shape    = RoundedCornerShape(12.dp),
-                        color    = MARed.copy(alpha = 0.10f),
-                        border   = BorderStroke(1.dp, MARed.copy(alpha = 0.40f)),
+        // ADMINISTRATION SECTION (If Admin)
+        if (isAdmin) {
+            item {
+                Column {
+                    SectionTitle("ADMINISTRATION")
+                    Spacer(Modifier.height(8.dp))
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(onClick = onAdminClick)
+                            .pressScaleClickable(onClick = onAdminClick),
+                        colors = CardDefaults.cardColors(containerColor = MARed.copy(alpha = 0.12f)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MARed.copy(alpha = 0.4f))
                     ) {
                         Row(
-                            modifier          = Modifier
+                            modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
-                                modifier         = Modifier
-                                    .size(44.dp)
+                                modifier = Modifier
+                                    .size(42.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(MARed),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector        = Icons.Default.AdminPanelSettings,
+                                    imageVector = Icons.Default.AdminPanelSettings,
                                     contentDescription = null,
-                                    tint               = Color.White,
-                                    modifier           = Modifier.size(22.dp)
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
+
                             Spacer(Modifier.width(14.dp))
+
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text       = "Admin Panel",
-                                    color      = Color.White,
+                                    text = "Admin Management Panel",
+                                    color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize   = 15.sp
+                                    fontSize = 15.sp
                                 )
                                 Text(
-                                    text     = "Manage movies, series & users",
-                                    color    = MATextSecondary,
-                                    fontSize = 12.sp
+                                    text = "Manage movies, anime, episodes & user requests",
+                                    color = MATextSecondary,
+                                    fontSize = 11.sp
                                 )
                             }
-                            Spacer(Modifier.width(8.dp))
+
                             Icon(
-                                imageVector        = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                                 contentDescription = null,
-                                tint               = MARed,
-                                modifier           = Modifier.size(14.dp)
+                                tint = MARedLight,
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
                 }
             }
+        }
 
-            // ── ABOUT ──────────────────────────────────────────────────────────
-            item {
-                Spacer(Modifier.height(24.dp))
-                AboutSectionHeader("ABOUT")
-                Spacer(Modifier.height(10.dp))
-                Surface(
-                    shape    = RoundedCornerShape(12.dp),
-                    color    = MACard,
+        // COMMUNITY & DEVELOPER
+        item {
+            Column {
+                SectionTitle("COMMUNITY & DEVELOPER")
+                Spacer(Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MACard),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(0.5.dp, MABorderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
                         AboutLinkRow(
-                            icon       = Icons.Default.Code,
-                            label      = developerCredit,
-                            supporting = "Contact developer on Telegram",
-                            onClick    = { openTelegram(context, developerTelegramUrl) }
+                            icon = Icons.Default.Code,
+                            label = developerCredit,
+                            supporting = "Contact lead developer on Telegram",
+                            onClick = { openTelegram(context, developerTelegramUrl) }
                         )
-                        AboutRowDivider()
+                        AboutDivider()
                         AboutLinkRow(
-                            icon       = Icons.Default.Send,
-                            label      = telegramChannelUrl,
-                            supporting = "Join the official Telegram channel",
-                            onClick    = { openTelegram(context, telegramChannelUrl) }
+                            icon = Icons.AutoMirrored.Filled.Send,
+                            label = "Official Telegram Channel",
+                            supporting = telegramChannelUrl,
+                            onClick = { openTelegram(context, telegramChannelUrl) }
                         )
                     }
                 }
             }
+        }
 
-            // ── SIGN OUT ──────────────────────────────────────────────────────
-            item {
-                Spacer(Modifier.height(28.dp))
-                OutlinedButton(
-                    onClick  = onSignOut,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = MARed),
-                    border   = BorderStroke(1.dp, MARed.copy(alpha = 0.5f)),
-                    shape    = RoundedCornerShape(10.dp)
+        // SIGN OUT BUTTON
+        item {
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(
+                onClick = onSignOut,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MACard,
+                    contentColor = MARed
+                ),
+                border = BorderStroke(1.dp, MARed.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .pressScaleClickable(onClick = onSignOut)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        imageVector        = Icons.Default.Logout,
+                        imageVector = Icons.Default.Logout,
                         contentDescription = null,
-                        modifier           = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Sign Out", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Sign Out Account",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
-                // Extra nav-bar clearance so the last item is never hidden by the gesture bar
-                Spacer(Modifier.navigationBarsPadding())
-                Spacer(Modifier.height(16.dp))
             }
         }
     }
 }
 
-// ── About tab helpers ─────────────────────────────────────────────────────────
+// â”€â”€ About Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
-private fun AboutSectionHeader(text: String) {
+private fun SectionTitle(text: String) {
     Text(
-        text          = text,
-        color         = MATextSecondary,
-        style         = MaterialTheme.typography.labelSmall,
-        fontWeight    = FontWeight.SemiBold,
-        letterSpacing = 1.5.sp,
-        modifier      = Modifier.padding(start = 4.dp)
+        text = text,
+        color = MATextSecondary,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.2.sp
     )
 }
 
 @Composable
-private fun AboutRowDivider() {
-    HorizontalDivider(
-        color    = Color.White.copy(alpha = 0.06f),
-        modifier = Modifier.padding(start = 16.dp)
-    )
+private fun AboutDivider() {
+    HorizontalDivider(color = MABorderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(start = 16.dp))
 }
 
 @Composable
@@ -1090,92 +1172,132 @@ private fun AboutLinkRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+            .pressScaleClickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector        = icon,
+            imageVector = icon,
             contentDescription = null,
-            tint               = MARed,
-            modifier           = Modifier.size(20.dp)
+            tint = MARed,
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text       = label,
-                color      = Color.White,
-                fontSize   = 14.sp,
+                text = label,
+                color = Color.White,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text     = supporting,
-                color    = MATextSecondary,
+                text = supporting,
+                color = MATextSecondary,
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
         Icon(
-            imageVector        = Icons.AutoMirrored.Filled.ArrowForwardIos,
-            contentDescription = "Open Telegram",
-            tint               = MATextSecondary.copy(alpha = 0.55f),
-            modifier           = Modifier.size(14.dp)
+            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            tint = MATextSecondary,
+            modifier = Modifier.size(14.dp)
         )
     }
 }
 
 @Composable
 private fun InfoRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String,
     valueColor: Color = Color.White
 ) {
     Row(
-        modifier              = Modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment     = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier              = Modifier.weight(1f, fill = false)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (icon != null) {
-                Icon(
-                    imageVector        = icon,
-                    contentDescription = null,
-                    tint               = MATextSecondary,
-                    modifier           = Modifier.size(15.dp)
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MATextSecondary,
+                modifier = Modifier.size(18.dp)
+            )
             Text(
-                text  = label,
+                text = label,
                 color = MATextSecondary,
-                style = MaterialTheme.typography.bodyMedium
+                fontSize = 13.sp
             )
         }
         Text(
-            text       = value,
-            color      = valueColor,
-            style      = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            maxLines   = 1,
-            overflow   = TextOverflow.Ellipsis,
-            modifier   = Modifier
-                .padding(start = 16.dp)
-                .weight(1f, fill = false)
+            text = value,
+            color = valueColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
-// ── New-request bottom sheet ──────────────────────────────────────────────────
+@Composable
+private fun EmptyState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(MACard),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MATextTertiary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = description,
+                color = MATextSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+// â”€â”€ New Request Modal Bottom Sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1185,15 +1307,16 @@ private fun NewRequestSheet(
     onDismiss: () -> Unit,
     onSubmit: (title: String, type: String, note: String?) -> Unit
 ) {
-    var title        by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("movie") }
-    var note         by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
     val types = listOf("movie", "series", "anime")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor   = MASurface,
-        contentColor     = Color.White
+        containerColor = MASurface,
+        contentColor = Color.White,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1203,114 +1326,126 @@ private fun NewRequestSheet(
                 .imePadding()
         ) {
             Text(
-                text       = "Request Content",
-                color      = Color.White,
-                fontSize   = 20.sp,
+                text = "Request Content",
+                color = Color.White,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text  = "Ask the admin to add a movie, series, or anime",
+                text = "Let our admin team know what title you'd like added next.",
                 color = MATextSecondary,
-                style = MaterialTheme.typography.bodySmall
+                fontSize = 13.sp
             )
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
 
             OutlinedTextField(
-                value           = title,
-                onValueChange   = { title = it },
-                label           = { Text("Title *") },
-                placeholder     = { Text("e.g. Interstellar") },
-                modifier        = Modifier.fillMaxWidth(),
-                singleLine      = true,
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Title *") },
+                placeholder = { Text("e.g. Solo Leveling, Interstellar") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                colors          = redFieldColors()
+                colors = redFieldColors()
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text  = "Type",
+                text = "Content Type",
                 color = MATextSecondary,
-                style = MaterialTheme.typography.labelMedium
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(8.dp))
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 types.forEach { type ->
-                    FilterChip(
-                        selected = selectedType == type,
-                        onClick  = { selectedType = type },
-                        label    = { Text(type.replaceFirstChar { it.uppercaseChar() }) },
-                        colors   = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MARed,
-                            selectedLabelColor     = Color.White,
-                            containerColor         = MACard,
-                            labelColor             = MATextSecondary
-                        ),
-                        border   = FilterChipDefaults.filterChipBorder(
-                            enabled             = true,
-                            selected            = selectedType == type,
-                            borderColor         = Color.White.copy(alpha = 0.12f),
-                            selectedBorderColor = MARed
+                    val selected = selectedType == type
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selected) MARed else MACard)
+                            .border(1.dp, if (selected) MARed else MABorderSubtle, RoundedCornerShape(8.dp))
+                            .pressScaleClickable { selectedType = type }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = type.replaceFirstChar { it.uppercaseChar() },
+                            color = if (selected) Color.White else MATextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                         )
-                    )
+                    }
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
-                value         = note,
+                value = note,
                 onValueChange = { if (it.length <= 500) note = it },
-                label         = { Text("Note (optional)") },
-                placeholder   = { Text("Year, season, source link, etc.") },
-                modifier      = Modifier.fillMaxWidth(),
-                minLines      = 3,
-                maxLines      = 4,
-                colors        = redFieldColors(),
+                label = { Text("Note (optional)") },
+                placeholder = { Text("Season, year, language, source link, etc.") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                maxLines = 4,
+                shape = RoundedCornerShape(10.dp),
+                colors = redFieldColors(),
                 supportingText = {
-                    Text("${note.length}/500", color = MATextSecondary)
+                    Text("${note.length}/500", color = MATextSecondary, fontSize = 11.sp)
                 }
             )
 
-            if (submitError != null) {
+            if (!submitError.isNullOrBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text  = submitError,
+                    text = submitError,
                     color = MARed,
-                    style = MaterialTheme.typography.bodySmall
+                    fontSize = 12.sp
                 )
             }
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick  = {
+                onClick = {
                     if (title.isNotBlank()) {
                         onSubmit(title.trim(), selectedType, note.trim().ifBlank { null })
                     }
                 },
-                enabled  = title.isNotBlank() && !isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.buttonColors(
-                    containerColor         = MARed,
-                    contentColor           = Color.White,
-                    disabledContainerColor = MARed.copy(alpha = 0.35f),
-                    disabledContentColor   = Color.White.copy(alpha = 0.5f)
+                enabled = title.isNotBlank() && !isSubmitting,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .pressScaleClickable(
+                        enabled = title.isNotBlank() && !isSubmitting,
+                        onClick = {
+                            if (title.isNotBlank()) {
+                                onSubmit(title.trim(), selectedType, note.trim().ifBlank { null })
+                            }
+                        }
+                    ),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MARed,
+                    contentColor = Color.White,
+                    disabledContainerColor = MARed.copy(alpha = 0.35f)
                 ),
-                shape    = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 if (isSubmitting) {
                     CircularProgressIndicator(
-                        color       = Color.White,
-                        modifier    = Modifier.size(20.dp),
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp
                     )
                 } else {
                     Text(
-                        text       = "Submit Request",
-                        fontWeight = FontWeight.SemiBold,
-                        modifier   = Modifier.padding(vertical = 4.dp)
+                        text = "Submit Request",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -1318,17 +1453,15 @@ private fun NewRequestSheet(
     }
 }
 
-// ── Shared text field colours ─────────────────────────────────────────────────
-
 @Composable
 private fun redFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor        = MARed,
-    focusedLabelColor         = MARed,
-    cursorColor               = MARed,
-    unfocusedBorderColor      = Color.White.copy(alpha = 0.18f),
-    unfocusedLabelColor       = MATextSecondary,
-    focusedTextColor          = Color.White,
-    unfocusedTextColor        = Color.White,
-    focusedPlaceholderColor   = MATextSecondary,
-    unfocusedPlaceholderColor = MATextSecondary
+    focusedBorderColor = MARed,
+    focusedLabelColor = MARed,
+    cursorColor = MARed,
+    unfocusedBorderColor = MABorderSubtle,
+    unfocusedLabelColor = MATextSecondary,
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    focusedPlaceholderColor = MATextTertiary,
+    unfocusedPlaceholderColor = MATextTertiary
 )
