@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -315,15 +316,28 @@ fun DetailScreen(
                                     style      = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(Modifier.height(MASpacing.md))
-                                LazyRow(
-                                    contentPadding        = PaddingValues(end = MASpacing.sm),
-                                    horizontalArrangement = Arrangement.spacedBy(MASpacing.sm)
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(MASpacing.md)
                                 ) {
-                                    items(uiState.similarMovies) { similar ->
-                                        MovieCard(
-                                            movie   = similar,
-                                            onClick = { onMovieClick(similar.id) }
-                                        )
+                                    uiState.similarMovies.chunked(3).forEach { rowMovies ->
+                                        Row(
+                                            modifier              = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(MASpacing.sm)
+                                        ) {
+                                            rowMovies.forEach { similar ->
+                                                Box(modifier = Modifier.weight(1f)) {
+                                                    MovieCard(
+                                                        movie    = similar,
+                                                        onClick  = { onMovieClick(similar.id) },
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        width    = Dp.Unspecified
+                                                    )
+                                                }
+                                            }
+                                            repeat(3 - rowMovies.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
                                     }
                                 }
                             }
