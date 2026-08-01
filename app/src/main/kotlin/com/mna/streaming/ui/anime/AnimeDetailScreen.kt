@@ -1340,28 +1340,48 @@ private fun MoreLikeThisTabContent(
             )
         }
     } else {
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(similarAnime) { item ->
-                SimilarAnimeCard(anime = item, onClick = { onAnimeClick(item.id) })
+            similarAnime.chunked(3).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowItems.forEach { item ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            SimilarAnimeCard(
+                                anime = item,
+                                onClick = { onAnimeClick(item.id) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                    repeat(3 - rowItems.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SimilarAnimeCard(anime: ApiAnime, onClick: () -> Unit) {
+private fun SimilarAnimeCard(
+    anime: ApiAnime,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = Modifier
-            .width(130.dp)
-            .pressScaleClickable(onClick = onClick)
+        modifier = modifier.pressScaleClickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
-                .width(130.dp)
-                .height(185.dp)
+                .fillMaxWidth()
+                .aspectRatio(130f / 185f)
                 .clip(RoundedCornerShape(10.dp))
                 .border(0.5.dp, MABorderSubtle, RoundedCornerShape(10.dp))
                 .background(MACard)
