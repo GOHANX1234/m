@@ -527,15 +527,23 @@ private fun WatchHistoryTab(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(history, key = { it.movieId }) { entry ->
-                        val isAnime = entry.targetType == "Episode" || entry.seriesId != null
+                        val typeLower = entry.contentType?.lowercase() ?: ""
+                        val (badgeText, badgeColor, isSeriesOrAnime) = when {
+                            typeLower == "anime" -> Triple("ANIME", MAAccentAnime, true)
+                            typeLower == "series" -> Triple("SERIES", MAAccentSeries, true)
+                            typeLower == "movie" -> Triple("MOVIE", MAAccentMovie, false)
+                            entry.targetType == "Episode" || entry.seriesId != null -> Triple("SERIES", MAAccentSeries, true)
+                            else -> Triple("MOVIE", MAAccentMovie, false)
+                        }
+
                         MediaRowCard(
                             posterUrl = entry.posterUrl,
                             title = entry.title,
-                            badge = if (isAnime) "ANIME" else "MOVIE",
-                            badgeColor = if (isAnime) MARed else Color(0xFF8B5CF6),
+                            badge = badgeText,
+                            badgeColor = badgeColor,
                             meta = if (entry.updatedAt > 0) "Watched ${formatEpochDate(entry.updatedAt)}" else "",
                             onClick = {
-                                if (isAnime) {
+                                if (isSeriesOrAnime) {
                                     val seriesId = entry.seriesId ?: entry.movieId
                                     onAnimeClick(seriesId)
                                 } else {
@@ -585,7 +593,13 @@ private fun WatchlistTab(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(watchlist, key = { it.movieId }) { item ->
-                        val isAnime = item.targetType == "anime" || item.targetType == "series"
+                        val targetTypeLower = item.targetType?.lowercase() ?: ""
+                        val (badgeText, badgeColor, isSeriesOrAnime) = when (targetTypeLower) {
+                            "series" -> Triple("SERIES", MAAccentSeries, true)
+                            "anime" -> Triple("ANIME", MAAccentAnime, true)
+                            else -> Triple("MOVIE", MAAccentMovie, false)
+                        }
+
                         val meta = buildString {
                             if (item.releaseYear > 0) append(item.releaseYear)
                             if (item.rating > 0) {
@@ -597,11 +611,11 @@ private fun WatchlistTab(
                         MediaRowCard(
                             posterUrl = item.posterUrl,
                             title = item.title,
-                            badge = if (isAnime) "ANIME" else "MOVIE",
-                            badgeColor = if (isAnime) MARed else Color(0xFF8B5CF6),
+                            badge = badgeText,
+                            badgeColor = badgeColor,
                             meta = meta,
                             onClick = {
-                                if (isAnime) onAnimeClick(item.movieId)
+                                if (isSeriesOrAnime) onAnimeClick(item.movieId)
                                 else onMovieClick(item.movieId)
                             }
                         )
