@@ -42,7 +42,7 @@ private val StatusOptions = listOf(
     "completed" to "Done"
 )
 
-// ── Screen ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun AnimeScreen(
@@ -73,13 +73,13 @@ fun AnimeScreen(
     ) {
         when {
             uiState.isLoading -> {
-                // Skeleton shimmer grid — feels alive, no dead spinner
+                // Skeleton shimmer grid â€” feels alive, no dead spinner
                 LazyVerticalGrid(
                     columns               = GridCells.Fixed(3),
                     modifier              = Modifier.fillMaxSize(),
                     contentPadding        = PaddingValues(
                         start  = 12.dp, end = 12.dp,
-                        top    = 152.dp, bottom = 90.dp
+                        top    = 184.dp, bottom = 90.dp
                     ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement   = Arrangement.spacedBy(12.dp),
@@ -127,7 +127,7 @@ fun AnimeScreen(
                     modifier              = Modifier.fillMaxSize(),
                     contentPadding        = PaddingValues(
                         start  = 12.dp, end = 12.dp,
-                        top    = 152.dp, bottom = 90.dp
+                        top    = 184.dp, bottom = 90.dp
                     ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement   = Arrangement.spacedBy(12.dp)
@@ -151,7 +151,7 @@ fun AnimeScreen(
             }
         }
 
-        // ── Sticky header ──────────────────────────────────────────────────────
+        // â”€â”€ Sticky header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         AnimeHeader(
             uiState          = uiState,
             onSearchClick    = onSearchClick,
@@ -162,7 +162,7 @@ fun AnimeScreen(
     }
 }
 
-// ── Header ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AnimeHeader(
@@ -370,7 +370,7 @@ private fun AnimeGenreChip(label: String, selected: Boolean, onClick: () -> Unit
     }
 }
 
-// ── Anime card — title overlaid inside poster ───────────────────────────────────
+// â”€â”€ Anime card â€” title overlaid inside poster â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun AnimeCard(anime: ApiAnime, onClick: () -> Unit) {
@@ -402,7 +402,7 @@ fun AnimeCard(anime: ApiAnime, onClick: () -> Unit) {
                 )
         )
 
-        // Ongoing badge — top-left (only shown when relevant)
+        // Ongoing badge â€” top-left (only shown when relevant)
         if (anime.status == "ongoing") {
             Row(
                 modifier = Modifier
@@ -430,7 +430,7 @@ fun AnimeCard(anime: ApiAnime, onClick: () -> Unit) {
             }
         }
 
-        // Rating badge — top-right
+        // Rating badge â€” top-right
         if (anime.rating > 0) {
             Row(
                 modifier = Modifier
