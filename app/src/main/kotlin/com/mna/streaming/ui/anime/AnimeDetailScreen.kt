@@ -172,7 +172,7 @@ private fun launchPlayer(
         putExtra(AnimePlayerActivity.EXTRA_EPISODE_ID, episode.id)
         putExtra(
             AnimePlayerActivity.EXTRA_TITLE,
-            "${anime.title} Â· S${episode.season}E${episode.episodeNumber}"
+            "${anime.title} \u2022 S${episode.season}E${episode.episodeNumber}"
         )
     }
     context.startActivity(intent)
