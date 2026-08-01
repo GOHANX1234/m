@@ -104,7 +104,7 @@ fun DetailScreen(
                 ) {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
 
-                        // ── Backdrop ────────────────────────────────────────
+                        // â”€â”€ Backdrop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -160,7 +160,7 @@ fun DetailScreen(
                             }
                         }
 
-                        // ── Content sheet — overlaps the backdrop's rounded top
+                        // â”€â”€ Content sheet â€” overlaps the backdrop's rounded top
                         // corners for a layered, premium "sliding sheet" look.
                         Column(
                             modifier = Modifier
@@ -180,7 +180,7 @@ fun DetailScreen(
 
                             Spacer(Modifier.height(MASpacing.sm))
 
-                            // Meta row: rating • year • duration • views
+                            // Meta row: rating â€¢ year â€¢ duration â€¢ views
                             Row(
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(MASpacing.sm)
@@ -226,12 +226,12 @@ fun DetailScreen(
 
                             Spacer(Modifier.height(MASpacing.lg))
 
-                            // ── Expandable description ───────────────────────
+                            // â”€â”€ Expandable description â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             ExpandableDescription(movie.description)
 
                             Spacer(Modifier.height(MASpacing.xl))
 
-                            // ── Primary CTA — full-width ─────────────────────
+                            // â”€â”€ Primary CTA â€” full-width â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             MAPrimaryButton(
                                 text    = "Play Now",
                                 icon    = Icons.Default.PlayArrow,
@@ -249,7 +249,7 @@ fun DetailScreen(
 
                             Spacer(Modifier.height(MASpacing.md))
 
-                            // ── Secondary actions — equal-weight columns ──────
+                            // â”€â”€ Secondary actions â€” equal-weight columns â”€â”€â”€â”€â”€â”€
                             Row(
                                 modifier              = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -285,7 +285,7 @@ fun DetailScreen(
                                 }
                             }
 
-                            // ── Cast ──────────────────────────────────────────
+                            // â”€â”€ Cast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             if (uiState.cast.isNotEmpty()) {
                                 Spacer(Modifier.height(MASpacing.xxl))
                                 Text(
@@ -305,7 +305,7 @@ fun DetailScreen(
                                 }
                             }
 
-                            // ── More Like This ────────────────────────────────
+                            // â”€â”€ More Like This â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             if (uiState.similarMovies.isNotEmpty()) {
                                 Spacer(Modifier.height(MASpacing.xxl))
                                 Text(
@@ -328,7 +328,7 @@ fun DetailScreen(
                                 }
                             }
 
-                            // ── Reviews ───────────────────────────────────────
+                            // â”€â”€ Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             if (uiState.reviews.isNotEmpty()) {
                                 Spacer(Modifier.height(MASpacing.xxl))
                                 Text(
@@ -375,7 +375,7 @@ fun DetailScreen(
         }
     }
 
-    // ── Rating dialog ─────────────────────────────────────────────────────────
+    // â”€â”€ Rating dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (uiState.showRatingDialog) {
         RatingDialog(
             currentRating = uiState.userReview?.rating ?: 0,
@@ -386,16 +386,16 @@ fun DetailScreen(
     }
 }
 
-// ── Small "•" separator used in meta rows ──────────────────────────────────────
+// â”€â”€ Small "â€¢" separator used in meta rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun MetaDot() {
-    Text("•", color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
+    Text("\u2022", color = MATextSecondary, style = MaterialTheme.typography.bodyMedium)
 }
 
-// ── Expandable synopsis — collapses long descriptions to 3 lines with a
+// â”€â”€ Expandable synopsis â€” collapses long descriptions to 3 lines with a
 // tappable "Read more" / "Show less" affordance instead of always showing
-// the full block of text. ────────────────────────────────────────────────────
+// the full block of text. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ExpandableDescription(description: String) {
@@ -430,7 +430,7 @@ private fun ExpandableDescription(description: String) {
     }
 }
 
-// ── Compact icon+label secondary action (My List, Rate, Trailer) ──────────────
+// â”€â”€ Compact icon+label secondary action (My List, Rate, Trailer) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun DetailActionButton(
@@ -470,7 +470,7 @@ private fun DetailActionButton(
     }
 }
 
-// ── Cast card ─────────────────────────────────────────────────────────────────
+// â”€â”€ Cast card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun CastCard(member: ApiCastMember) {
@@ -527,7 +527,7 @@ private fun CastCard(member: ApiCastMember) {
     }
 }
 
-// ── Review card ───────────────────────────────────────────────────────────────
+// â”€â”€ Review card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ReviewCard(
@@ -631,7 +631,7 @@ private fun ReviewCard(
     }
 }
 
-// ── Rating dialog ─────────────────────────────────────────────────────────────
+// â”€â”€ Rating dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun RatingDialog(
@@ -652,7 +652,7 @@ private fun RatingDialog(
         },
         text = {
             Column {
-                // Star rating row 1–10
+                // Star rating row 1â€“10
                 Text("Rating: $selectedRating / 10", color = MATextSecondary, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 // SpaceEvenly distributes stars across the full dialog width so
