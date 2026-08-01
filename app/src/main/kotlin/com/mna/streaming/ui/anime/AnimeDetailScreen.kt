@@ -2,7 +2,12 @@ package com.mna.streaming.ui.anime
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -14,18 +19,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +46,19 @@ import com.mna.streaming.network.models.ApiAnime
 import com.mna.streaming.network.models.ApiReview
 import com.mna.streaming.ui.theme.*
 
+/**
+ * Enterprise-Grade Anime Detail Screen
+ *
+ * Implements a rich, addictive, cinema-style UI with:
+ * - Parallax-style backdrop with multi-stage gradient blending
+ * - Floating poster with glowing elevation and quick metadata
+ * - High-impact Primary "Watch Now" action CTA
+ * - Glassmorphic quick action bar (Watchlist, Trailer, Share)
+ * - Segmented Navigation Tabs (Episodes, Overview, Reviews, More Like This)
+ * - Smooth season selector rail and detailed episode cards with press feedback
+ * - Interactive rating & review composer with star animations
+ * - Animated shimmer skeleton state for instant visual feedback
+ */
 @Composable
 fun AnimeDetailScreen(
     animeId: String,
@@ -48,6 +71,14 @@ fun AnimeDetailScreen(
     )
     val uiState by vm.uiState.collectAsState()
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
+    // Calculate app bar opacity based on scroll offset for smooth translucent transition
+    val topBarAlpha by remember {
+        derivedStateOf {
+            (scrollState.value / 300f).coerceIn(0f, 0.95f)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -56,79 +87,524 @@ fun AnimeDetailScreen(
     ) {
         when {
             uiState.isLoading -> {
-                CircularProgressIndicator(
-                    color    = MARed,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                AnimeDetailSkeleton(onBackClick = onBackClick)
             }
 
             uiState.anime == null && !uiState.isLoading -> {
-                // anime is null when loading finishes — either a real error or cache miss
-                Column(
-                    modifier            = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text  = uiState.error ?: "Could not load anime details",
-                        color = MATextSecondary
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { vm.load() },
-                        colors  = ButtonDefaults.buttonColors(containerColor = MARed)
-                    ) { Text("Retry") }
-                }
+                AnimeDetailErrorState(
+                    error = uiState.error ?: "Could not load anime details",
+                    onRetry = { vm.load() },
+                    onBackClick = onBackClick
+                )
             }
 
             uiState.anime != null -> {
                 val anime = uiState.anime!!
-                AnimeDetailContent(
-                    anime               = anime,
-                    episodesBySeason    = uiState.episodesBySeason,
-                    reviews             = uiState.reviews,
-                    inWatchlist         = uiState.inWatchlist,
-                    isTogglingWatchlist = uiState.isTogglingWatchlist,
-                    isSubmittingReview  = uiState.isSubmittingReview,
-                    reviewSuccess       = uiState.reviewSuccess,
-                    reviewError         = uiState.reviewError,
-                    similarAnime        = uiState.similarAnime,
-                    onWatchlistToggle   = { vm.toggleWatchlist() },
-                    onSubmitReview      = { rating, comment -> vm.submitReview(rating, comment) },
-                    onDeleteReview      = { reviewId -> vm.deleteReview(reviewId) },
-                    onClearReviewFeedback = { vm.clearReviewFeedback() },
-                    onAnimeClick        = onAnimeClick,
-                    onEpisodeClick      = { episode ->
-                        val intent = Intent(context, AnimePlayerActivity::class.java).apply {
-                            putExtra(AnimePlayerActivity.EXTRA_EPISODE_ID, episode.id)
-                            putExtra(AnimePlayerActivity.EXTRA_TITLE,
-                                "${anime.title} · S${episode.season}E${episode.episodeNumber}")
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                ) {
+                    AnimeDetailHeader(
+                        anime = anime,
+                        inWatchlist = uiState.inWatchlist,
+                        isTogglingWatchlist = uiState.isTogglingWatchlist,
+                        episodes = uiState.episodes,
+                        onWatchlistToggle = { vm.toggleWatchlist() },
+                        onEpisodeClick = { episode ->
+                            launchPlayer(context, anime, episode)
                         }
-                        context.startActivity(intent)
+                    )
+
+                    // Detail Body Content with Tabbed View
+                    AnimeDetailBody(
+                        anime = anime,
+                        episodesBySeason = uiState.episodesBySeason,
+                        reviews = uiState.reviews,
+                        inWatchlist = uiState.inWatchlist,
+                        isTogglingWatchlist = uiState.isTogglingWatchlist,
+                        isSubmittingReview = uiState.isSubmittingReview,
+                        reviewSuccess = uiState.reviewSuccess,
+                        reviewError = uiState.reviewError,
+                        similarAnime = uiState.similarAnime,
+                        onWatchlistToggle = { vm.toggleWatchlist() },
+                        onSubmitReview = { rating, comment -> vm.submitReview(rating, comment) },
+                        onDeleteReview = { reviewId -> vm.deleteReview(reviewId) },
+                        onClearReviewFeedback = { vm.clearReviewFeedback() },
+                        onAnimeClick = onAnimeClick,
+                        onEpisodeClick = { episode ->
+                            launchPlayer(context, anime, episode)
+                        }
+                    )
+                }
+
+                // Sticky / Collapsing Top Bar
+                TopGlassNavBar(
+                    title = anime.title,
+                    alpha = topBarAlpha,
+                    inWatchlist = uiState.inWatchlist,
+                    onBackClick = onBackClick,
+                    onWatchlistToggle = { vm.toggleWatchlist() },
+                    onShareClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, anime.title)
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Check out ${anime.title} on M&A Streaming!"
+                            )
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share via"))
                     }
                 )
             }
         }
+    }
+}
 
-        // Back button — always on top
-        IconButton(
-            onClick  = onBackClick,
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(8.dp)
+private fun launchPlayer(
+    context: android.content.Context,
+    anime: ApiAnime,
+    episode: ApiAdminEpisode
+) {
+    val intent = Intent(context, AnimePlayerActivity::class.java).apply {
+        putExtra(AnimePlayerActivity.EXTRA_EPISODE_ID, episode.id)
+        putExtra(
+            AnimePlayerActivity.EXTRA_TITLE,
+            "${anime.title} · S${episode.season}E${episode.episodeNumber}"
+        )
+    }
+    context.startActivity(intent)
+}
+
+// ── Top Glass Navigation Bar ───────────────────────────────────────────────────
+
+@Composable
+private fun TopGlassNavBar(
+    title: String,
+    alpha: Float,
+    inWatchlist: Boolean,
+    onBackClick: () -> Unit,
+    onWatchlistToggle: () -> Unit,
+    onShareClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(56.dp)
+            .background(MADark.copy(alpha = alpha))
+            .padding(horizontal = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(
-                imageVector        = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint               = Color.White
+            // Frosted Glass Back Button
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .border(1.dp, MABorderSubtle, CircleShape)
+                    .pressScaleClickable(onClick = onBackClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Animated Header Title (fades in as user scrolls)
+            Text(
+                text = title,
+                color = Color.White.copy(alpha = (alpha * 1.2f).coerceAtMost(1f)),
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                textAlign = TextAlign.Center
             )
+
+            // Right Actions
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Quick Bookmark Icon
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .border(1.dp, MABorderSubtle, CircleShape)
+                        .pressScaleClickable(onClick = onWatchlistToggle),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (inWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                        contentDescription = "Watchlist",
+                        tint = if (inWatchlist) MAGold else Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Share Button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .border(1.dp, MABorderSubtle, CircleShape)
+                        .pressScaleClickable(onClick = onShareClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
 
-// ── Full detail content ────────────────────────────────────────────────────────
+// ── Hero Banner Header with Floating Poster ────────────────────────────────────
 
 @Composable
-private fun AnimeDetailContent(
+private fun AnimeDetailHeader(
+    anime: ApiAnime,
+    inWatchlist: Boolean,
+    isTogglingWatchlist: Boolean,
+    episodes: List<ApiAdminEpisode>,
+    onWatchlistToggle: () -> Unit,
+    onEpisodeClick: (ApiAdminEpisode) -> Unit
+) {
+    val context = LocalContext.current
+    val firstEpisode = remember(episodes) {
+        episodes.sortedWith(compareBy({ it.season }, { it.episodeNumber })).firstOrNull()
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(410.dp)
+        ) {
+            // Backdrop Image
+            AsyncImage(
+                model = anime.bannerUrl ?: anime.posterUrl,
+                contentDescription = anime.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Multi-Stage Ambient Gradient Overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.Black.copy(alpha = 0.6f),
+                                0.35f to Color.Transparent,
+                                0.70f to MADark.copy(alpha = 0.7f),
+                                1.0f to MADark
+                            )
+                        )
+                    )
+            )
+
+            // Bottom Content: Floating Poster + Main Title & Badges
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Floating Poster Image
+                Box(
+                    modifier = Modifier
+                        .width(125.dp)
+                        .height(180.dp)
+                        .shadow(16.dp, RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, MABorderStrong, RoundedCornerShape(12.dp))
+                        .background(MACard)
+                ) {
+                    AsyncImage(
+                        model = anime.posterUrl ?: anime.bannerUrl,
+                        contentDescription = anime.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Type Badge Over Poster
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MARed)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "ANIME",
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+
+                // Info Column adjacent to poster
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Status & Quality Pill
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val isOngoing = anime.status == "ongoing"
+                        val statusBg = if (isOngoing) MASuccess.copy(alpha = 0.2f) else MACardElevated
+                        val statusText = if (isOngoing) MASuccess else MATextSecondary
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(statusBg)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(statusText)
+                                )
+                                Text(
+                                    text = if (isOngoing) "ON AIR" else "COMPLETED",
+                                    color = statusText,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MACardElevated)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "HD 1080p",
+                                color = MATextSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    // Main Title
+                    Text(
+                        text = anime.title,
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 24.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // Score & Seasons Row
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (anime.rating > 0) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MAGold.copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = MAGold,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "%.1f".format(anime.rating),
+                                    color = MAGold,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        anime.releaseYear?.let { year ->
+                            Text(text = "$year", color = MATextSecondary, fontSize = 12.sp)
+                        }
+
+                        anime.totalSeasons?.let { seasons ->
+                            Text(
+                                text = "• $seasons Season${if (seasons > 1) "s" else ""}",
+                                color = MATextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Primary Call to Action & Quick Action Grid ─────────────────────────────
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Main Vibrant "WATCH NOW" Button
+            Button(
+                onClick = {
+                    firstEpisode?.let { ep -> onEpisodeClick(ep) }
+                        ?: Toast.makeText(context, "No episodes available yet", Toast.LENGTH_SHORT).show()
+                },
+                enabled = firstEpisode != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MARed,
+                    contentColor = Color.White,
+                    disabledContainerColor = MARed.copy(alpha = 0.4f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .pressScaleClickable(
+                        enabled = firstEpisode != null,
+                        onClick = {
+                            firstEpisode?.let { ep -> onEpisodeClick(ep) }
+                        }
+                    )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Play",
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (firstEpisode != null) "WATCH EPISODE 1" else "NO EPISODES AVAILABLE",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            // Quick Actions Bar: Watchlist & Trailer
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Watchlist Toggle Button
+                OutlinedButton(
+                    onClick = onWatchlistToggle,
+                    enabled = !isTogglingWatchlist,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (inWatchlist) MAGold else Color.White,
+                        containerColor = MACard
+                    ),
+                    border = BorderStroke(1.dp, if (inWatchlist) MAGold.copy(alpha = 0.5f) else MABorderSubtle),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .pressScaleClickable(onClick = onWatchlistToggle)
+                ) {
+                    if (isTogglingWatchlist) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MARed
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (inWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (inWatchlist) "Saved" else "Watchlist",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                // Trailer Button (if present)
+                if (!anime.trailerUrl.isNullOrBlank()) {
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(anime.trailerUrl))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White,
+                            containerColor = MACard
+                        ),
+                        border = BorderStroke(1.dp, MABorderSubtle),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayCircleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Trailer",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Segmented Navigation Body View ──────────────────────────────────────────────
+
+@Composable
+private fun AnimeDetailBody(
     anime: ApiAnime,
     episodesBySeason: Map<Int, List<ApiAdminEpisode>>,
     reviews: List<ApiReview>,
@@ -145,485 +621,465 @@ private fun AnimeDetailContent(
     onAnimeClick: (String) -> Unit,
     onEpisodeClick: (ApiAdminEpisode) -> Unit
 ) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = remember(episodesBySeason, reviews) {
+        val epCount = episodesBySeason.values.sumOf { it.size }
+        listOf(
+            "Episodes${if (epCount > 0) " ($epCount)" else ""}",
+            "Overview",
+            "Reviews${if (reviews.isNotEmpty()) " (${reviews.size})" else ""}",
+            "More Like This"
+        )
+    }
+
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fillMaxWidth()
+            .padding(top = 12.dp)
     ) {
-
-        // ── Banner ─────────────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(380.dp)
-        ) {
-            AsyncImage(
-                model              = anime.bannerUrl ?: anime.posterUrl,
-                contentDescription = anime.title,
-                contentScale       = ContentScale.Crop,
-                modifier           = Modifier.fillMaxSize()
-            )
-            // Gradient fade at bottom
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Black.copy(alpha = 0.15f),
-                                0.55f to Color.Transparent,
-                                1.0f to MADark
-                            )
-                        )
+        // Segmented Tab Selector Rail
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = MADark,
+            contentColor = Color.White,
+            edgePadding = 16.dp,
+            divider = { HorizontalDivider(color = MABorderSubtle, thickness = 1.dp) },
+            indicator = { tabPositions ->
+                if (selectedTab < tabPositions.size) {
+                    Box(
+                        modifier = Modifier
+                            .tabIndicatorOffset(tabPositions[selectedTab])
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                            .background(MARed)
                     )
-            )
-            // Status + year row
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment     = Alignment.CenterVertically
-            ) {
-                val statusColor = if (anime.status == "ongoing") Color(0xFF22C55E) else MATextSecondary
-                val statusLabel = if (anime.status == "ongoing") "Ongoing" else "Completed"
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(statusColor.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(statusLabel, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
-                if (anime.releaseYear != null) {
-                    Text(anime.releaseYear.toString(), color = MATextSecondary, fontSize = 12.sp)
+            }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                val active = selectedTab == index
+                Tab(
+                    selected = active,
+                    onClick = { selectedTab = index },
+                    text = {
+                        Text(
+                            text = title,
+                            color = if (active) MARedLight else MATextSecondary,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 14.sp
+                        )
+                    }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Dynamic Tab Content View
+        Crossfade(
+            targetState = selectedTab,
+            label = "tabCrossfade",
+            animationSpec = tween(durationMillis = 200)
+        ) { page ->
+            when (page) {
+                0 -> {
+                    // EPISODES TAB
+                    EpisodesTabContent(
+                        episodesBySeason = episodesBySeason,
+                        onEpisodeClick = onEpisodeClick
+                    )
                 }
-                if (anime.totalSeasons != null) {
-                    Text("· ${anime.totalSeasons} Season${if (anime.totalSeasons > 1) "s" else ""}",
-                        color = MATextSecondary, fontSize = 12.sp)
+
+                1 -> {
+                    // OVERVIEW TAB
+                    OverviewTabContent(
+                        anime = anime
+                    )
+                }
+
+                2 -> {
+                    // REVIEWS TAB
+                    ReviewsTabContent(
+                        reviews = reviews,
+                        isSubmitting = isSubmittingReview,
+                        reviewSuccess = reviewSuccess,
+                        reviewError = reviewError,
+                        onSubmitReview = onSubmitReview,
+                        onDeleteReview = onDeleteReview,
+                        onClearReviewFeedback = onClearReviewFeedback
+                    )
+                }
+
+                3 -> {
+                    // MORE LIKE THIS TAB
+                    MoreLikeThisTabContent(
+                        similarAnime = similarAnime,
+                        onAnimeClick = onAnimeClick
+                    )
                 }
             }
         }
 
-        // ── Title + actions ────────────────────────────────────────────────────
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Text(
-                text       = anime.title,
-                color      = Color.White,
-                fontSize   = 22.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 28.sp
-            )
-            Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(80.dp))
+    }
+}
 
-            // Rating row
-            if (anime.rating > 0) {
+// ── Tab 0: Episodes View ───────────────────────────────────────────────────────
+
+@Composable
+private fun EpisodesTabContent(
+    episodesBySeason: Map<Int, List<ApiAdminEpisode>>,
+    onEpisodeClick: (ApiAdminEpisode) -> Unit
+) {
+    if (episodesBySeason.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Outlined.VideoLibrary,
+                    contentDescription = null,
+                    tint = MATextTertiary,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "No episodes released yet.",
+                    color = MATextSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    } else {
+        val seasons = remember(episodesBySeason) { episodesBySeason.keys.sorted() }
+        var selectedSeason by remember { mutableIntStateOf(seasons.firstOrNull() ?: 1) }
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Season Selector Rail
+            if (seasons.size > 1) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(Icons.Default.Star, contentDescription = null,
-                        tint = MAGold, modifier = Modifier.size(16.dp))
-                    Text(
-                        text  = "${"%.1f".format(anime.rating)} / 10",
-                        color = MAGold,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text  = "(${anime.ratingCount} ratings)",
-                        color = MATextSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-
-            // Watchlist button
-            OutlinedButton(
-                onClick   = onWatchlistToggle,
-                enabled   = !isTogglingWatchlist,
-                colors    = ButtonDefaults.outlinedButtonColors(
-                    contentColor = if (inWatchlist) MAGold else Color.White
-                ),
-                shape     = RoundedCornerShape(8.dp),
-                modifier  = Modifier.fillMaxWidth()
-            ) {
-                if (isTogglingWatchlist) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MARed)
-                } else {
-                    Icon(
-                        imageVector        = if (inWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                        contentDescription = null,
-                        modifier           = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(if (inWatchlist) "Saved to Watchlist" else "Add to Watchlist")
-            }
-
-            // Watch Trailer button (only shown when a trailer URL is available)
-            if (!anime.trailerUrl.isNullOrBlank()) {
-                Spacer(Modifier.height(8.dp))
-                val context = LocalContext.current
-                OutlinedButton(
-                    onClick  = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(anime.trailerUrl))
-                        context.startActivity(intent)
-                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
-                    shape    = RoundedCornerShape(8.dp),
-                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.PlayCircleOutline, contentDescription = null, tint = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Watch Trailer", style = MaterialTheme.typography.titleSmall)
+                    seasons.forEach { season ->
+                        val active = selectedSeason == season
+                        val bg = if (active) MARed else MACard
+                        val fg = if (active) Color.White else MATextSecondary
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(bg)
+                                .border(
+                                    1.dp,
+                                    if (active) MARed else MABorderSubtle,
+                                    RoundedCornerShape(20.dp)
+                                )
+                                .pressScaleClickable { selectedSeason = season }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Season $season",
+                                color = fg,
+                                fontSize = 12.sp,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Episode List for Selected Season
+            val currentEpisodes = episodesBySeason[selectedSeason] ?: emptyList()
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                currentEpisodes.forEach { episode ->
+                    EpisodeCard(episode = episode, onClick = { onEpisodeClick(episode) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EpisodeCard(
+    episode: ApiAdminEpisode,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pressScaleClickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MACard),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(0.5.dp, MABorderSubtle)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Number / Thumbnail Container
+            Box(
+                modifier = Modifier
+                    .size(width = 56.dp, height = 44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MACardElevated),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "E${episode.episodeNumber}",
+                    color = MARedLight,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Episode Info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = episode.title ?: "Episode ${episode.episodeNumber}",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Season ${episode.season}",
+                        color = MATextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = "•",
+                        color = MATextTertiary,
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        text = "1080p HD",
+                        color = MATextTertiary,
+                        fontSize = 11.sp
+                    )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            // Play Icon Action
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MARed.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play Episode",
+                    tint = MARed,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
 
-            // Genre chips
-            if (anime.genres.isNotEmpty()) {
+// ── Tab 1: Overview & Cast View ────────────────────────────────────────────────
+
+@Composable
+private fun OverviewTabContent(anime: ApiAnime) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // Synopsis Section
+        if (!anime.description.isNullOrBlank()) {
+            Column {
+                SectionTitle("Synopsis")
+                Spacer(Modifier.height(6.dp))
+
+                var expanded by remember { mutableStateOf(false) }
+                Text(
+                    text = anime.description,
+                    color = MATextSecondary,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    maxLines = if (expanded) Int.MAX_VALUE else 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.animateContentSize()
+                )
+                if (anime.description.length > 180) {
+                    Text(
+                        text = if (expanded) "Show Less" else "Read More",
+                        color = MARedLight,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .clickable { expanded = !expanded }
+                    )
+                }
+            }
+        }
+
+        // Genres Section
+        if (anime.genres.isNotEmpty()) {
+            Column {
+                SectionTitle("Genres")
+                Spacer(Modifier.height(8.dp))
                 Row(
-                    modifier              = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     anime.genres.forEach { genre ->
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(MACard)
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .border(1.dp, MABorderSubtle, RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text(genre.name, color = MATextSecondary, fontSize = 11.sp)
+                            Text(
+                                text = genre.name,
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-            }
-
-            // Description
-            if (!anime.description.isNullOrBlank()) {
-                Text(
-                    text     = anime.description,
-                    color    = MATextSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    maxLines = 5,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(20.dp))
             }
         }
 
-        // ── Episodes by season ─────────────────────────────────────────────────
-        if (episodesBySeason.isNotEmpty()) {
-            SectionHeader("Episodes")
-            episodesBySeason.entries.sortedBy { it.key }.forEach { (season, episodes) ->
-                SeasonSection(season = season, episodes = episodes, onEpisodeClick = onEpisodeClick)
-            }
-            Spacer(Modifier.height(8.dp))
-        } else {
-            // No episodes available (user might not have admin access)
-            Spacer(Modifier.height(4.dp))
-        }
-
-        // ── Cast ───────────────────────────────────────────────────────────────
+        // Cast & Voice Actors Section
         if (!anime.cast.isNullOrEmpty()) {
-            SectionHeader("Cast")
-            Row(
-                modifier              = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                anime.cast.sortedBy { it.order }.take(10).forEach { member ->
-                    CastMemberCard(member.name, member.character, member.image)
+            Column {
+                SectionTitle("Cast & Voice Actors")
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    anime.cast.sortedBy { it.order }.take(12).forEach { member ->
+                        CastMemberCard(
+                            name = member.name,
+                            character = member.character,
+                            imageUrl = member.image
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(20.dp))
         }
 
-        // ── More Like This ─────────────────────────────────────────────────────
-        if (similarAnime.isNotEmpty()) {
-            SectionHeader("More Like This")
-            LazyRow(
-                contentPadding        = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        // Metadata Spec Sheet
+        Column {
+            SectionTitle("Information")
+            Spacer(Modifier.height(10.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MACard),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(0.5.dp, MABorderSubtle),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                items(similarAnime) { item ->
-                    SimilarAnimeCard(anime = item, onClick = { onAnimeClick(item.id) })
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    InfoRow("Status", anime.status.replaceFirstChar { it.uppercase() })
+                    InfoRow("Type", anime.type)
+                    anime.releaseYear?.let { InfoRow("Release Year", "$it") }
+                    anime.totalSeasons?.let { InfoRow("Total Seasons", "$it") }
+                    if (anime.rating > 0) InfoRow("Community Score", "%.1f / 10 (${anime.ratingCount} votes)".format(anime.rating))
                 }
             }
-            Spacer(Modifier.height(8.dp))
         }
+    }
+}
 
-        // ── Reviews ────────────────────────────────────────────────────────────
-        SectionHeader("Reviews (${reviews.size})")
-        ReviewSubmitCard(
-            isSubmitting  = isSubmittingReview,
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, color = MATextSecondary, fontSize = 13.sp)
+        Text(text = value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// ── Tab 2: Reviews View ────────────────────────────────────────────────────────
+
+@Composable
+private fun ReviewsTabContent(
+    reviews: List<ApiReview>,
+    isSubmitting: Boolean,
+    reviewSuccess: Boolean,
+    reviewError: String?,
+    onSubmitReview: (Int, String?) -> Unit,
+    onDeleteReview: (String) -> Unit,
+    onClearReviewFeedback: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Review Submission Composer Card
+        ReviewComposerCard(
+            isSubmitting = isSubmitting,
             reviewSuccess = reviewSuccess,
-            reviewError   = reviewError,
-            onSubmit      = onSubmitReview,
+            reviewError = reviewError,
+            onSubmit = onSubmitReview,
             onClearFeedback = onClearReviewFeedback
         )
+
+        // Reviews List Header
+        SectionTitle("User Reviews (${reviews.size})")
+
         if (reviews.isEmpty()) {
-            Text(
-                text     = "No reviews yet. Be the first!",
-                color    = MATextSecondary,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No reviews yet. Share your thoughts above!",
+                    color = MATextSecondary,
+                    fontSize = 13.sp
+                )
+            }
         } else {
             reviews.forEach { review ->
                 ReviewCard(review = review, onDelete = { onDeleteReview(review.id) })
             }
         }
-
-        Spacer(Modifier.height(100.dp))
-    }
-}
-
-// ── Similar anime card ────────────────────────────────────────────────────────
-
-@Composable
-private fun SimilarAnimeCard(anime: ApiAnime, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .width(120.dp)
-            .clickable { onClick() }
-    ) {
-        Box {
-            AsyncImage(
-                model              = anime.posterUrl,
-                contentDescription = anime.title,
-                contentScale       = ContentScale.Crop,
-                modifier           = Modifier
-                    .width(120.dp)
-                    .height(170.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MASurface)
-            )
-            // Rating badge — top-right corner
-            if (anime.rating > 0) {
-                Surface(
-                    color    = Color.Black.copy(alpha = 0.72f),
-                    shape    = RoundedCornerShape(bottomStart = 8.dp),
-                    modifier = Modifier.align(Alignment.TopEnd)
-                ) {
-                    Row(
-                        modifier              = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
-                        verticalAlignment     = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Icon(
-                            imageVector        = Icons.Default.Star,
-                            contentDescription = null,
-                            tint               = MAGold,
-                            modifier           = Modifier.size(10.dp)
-                        )
-                        Text(
-                            text       = "%.1f".format(anime.rating),
-                            color      = Color.White,
-                            fontSize   = 9.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-            // Ongoing indicator — bottom-left
-            if (anime.status == "ongoing") {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color(0xFF22C55E).copy(alpha = 0.85f))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text("ON AIR", color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(Modifier.height(5.dp))
-        Text(
-            text     = anime.title,
-            color    = Color.White,
-            style    = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text  = anime.releaseYear?.toString() ?: "",
-                color = MATextSecondary,
-                style = MaterialTheme.typography.labelSmall
-            )
-            anime.totalSeasons?.let { seasons ->
-                Text(
-                    text  = "${seasons}S",
-                    color = MATextSecondary,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-        }
-    }
-}
-
-// ── Section header ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text       = title,
-        color      = Color.White,
-        fontWeight = FontWeight.Bold,
-        fontSize   = 17.sp,
-        modifier   = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-    )
-}
-
-// ── Season / episodes ──────────────────────────────────────────────────────────
-
-@Composable
-private fun SeasonSection(
-    season: Int,
-    episodes: List<ApiAdminEpisode>,
-    onEpisodeClick: (ApiAdminEpisode) -> Unit
-) {
-    var expanded by remember { mutableStateOf(season == 1) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // Season header — tap to expand/collapse
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            Text(
-                text       = "Season $season",
-                color      = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                fontSize   = 14.sp
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text     = "${episodes.size} episode${if (episodes.size != 1) "s" else ""}",
-                    color    = MATextSecondary,
-                    fontSize = 12.sp
-                )
-                Spacer(Modifier.width(6.dp))
-                Icon(
-                    imageVector        = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint               = MATextSecondary,
-                    modifier           = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        if (expanded) {
-            episodes.forEach { episode ->
-                EpisodeRow(episode = episode, onClick = { onEpisodeClick(episode) })
-                HorizontalDivider(color = MASurface, thickness = 0.5.dp,
-                    modifier = Modifier.padding(horizontal = 16.dp))
-            }
-        }
     }
 }
 
 @Composable
-private fun EpisodeRow(episode: ApiAdminEpisode, onClick: () -> Unit) {
-    Row(
-        modifier              = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment     = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier              = Modifier.weight(1f)
-        ) {
-            Box(
-                modifier         = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MACard),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text       = episode.episodeNumber.toString(),
-                    color      = MATextSecondary,
-                    fontSize   = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            Column {
-                Text(
-                    text     = episode.title ?: "Episode ${episode.episodeNumber}",
-                    color    = Color.White,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text     = "E${episode.episodeNumber}",
-                    color    = MATextSecondary,
-                    fontSize = 11.sp
-                )
-            }
-        }
-        Icon(
-            imageVector        = Icons.Default.PlayCircle,
-            contentDescription = "Play",
-            tint               = MARed,
-            modifier           = Modifier.size(28.dp)
-        )
-    }
-}
-
-// ── Cast card ──────────────────────────────────────────────────────────────────
-
-@Composable
-private fun CastMemberCard(name: String, character: String?, imageUrl: String?) {
-    Column(
-        modifier            = Modifier.width(70.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        AsyncImage(
-            model              = imageUrl,
-            contentDescription = name,
-            contentScale       = ContentScale.Crop,
-            modifier           = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(MACard)
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(name, color = Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (!character.isNullOrBlank()) {
-            Text(character, color = MATextSecondary, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-// ── Review submit card ─────────────────────────────────────────────────────────
-
-@Composable
-private fun ReviewSubmitCard(
+private fun ReviewComposerCard(
     isSubmitting: Boolean,
     reviewSuccess: Boolean,
     reviewError: String?,
@@ -644,152 +1100,184 @@ private fun ReviewSubmitCard(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors   = CardDefaults.cardColors(containerColor = MACard),
-        shape    = RoundedCornerShape(10.dp)
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MACard),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(0.5.dp, MABorderSubtle)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text("Write a Review", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-            Spacer(Modifier.height(8.dp))
-            // Star picker
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                (1..10).forEach { star ->
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Rate & Review",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+            Spacer(Modifier.height(10.dp))
+
+            // Interactive Star Rating Bar (10 Stars)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    (1..10).forEach { star ->
+                        val filled = star <= selectedRating
+                        Text(
+                            text = "★",
+                            color = if (filled) MAGold else MATextTertiary,
+                            fontSize = 22.sp,
+                            modifier = Modifier.clickable {
+                                selectedRating = star
+                                expanded = true
+                            }
+                        )
+                    }
+                }
+                if (selectedRating > 0) {
                     Text(
-                        text     = "★",
-                        color    = if (star <= selectedRating) MAGold else MATextSecondary,
-                        fontSize = 20.sp,
-                        modifier = Modifier.clickable { selectedRating = star; expanded = true }
+                        text = "$selectedRating/10",
+                        color = MAGold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
                     )
                 }
             }
+
             if (expanded) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
-                    value           = comment,
-                    onValueChange   = { if (it.length <= 1000) comment = it },
-                    placeholder     = { Text("Your thoughts… (optional)", color = MATextSecondary, fontSize = 13.sp) },
-                    modifier        = Modifier.fillMaxWidth(),
-                    maxLines        = 4,
-                    colors          = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = MARed,
-                        unfocusedBorderColor = MASurface,
-                        focusedTextColor     = Color.White,
-                        unfocusedTextColor   = Color.White,
-                        cursorColor          = MARed
+                    value = comment,
+                    onValueChange = { if (it.length <= 1000) comment = it },
+                    placeholder = { Text("Write your review (optional)...", color = MATextSecondary, fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 4,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MARed,
+                        unfocusedBorderColor = MABorderSubtle,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = MARed
                     )
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 Button(
-                    onClick  = { if (selectedRating > 0) onSubmit(selectedRating, comment.ifBlank { null }) },
-                    enabled  = selectedRating > 0 && !isSubmitting,
-                    colors   = ButtonDefaults.buttonColors(containerColor = MARed),
+                    onClick = {
+                        if (selectedRating > 0) onSubmit(selectedRating, comment.ifBlank { null })
+                    },
+                    enabled = selectedRating > 0 && !isSubmitting,
+                    colors = ButtonDefaults.buttonColors(containerColor = MARed),
+                    shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isSubmitting) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
                     } else {
-                        Text("Submit Review")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Post Review", fontWeight = FontWeight.Bold)
                     }
                 }
             }
+
             if (!reviewError.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(reviewError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
         }
     }
 }
 
-// ── Review card ────────────────────────────────────────────────────────────────
-
 @Composable
 private fun ReviewCard(review: ApiReview, onDelete: () -> Unit) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors   = CardDefaults.cardColors(containerColor = MACard),
-        shape    = RoundedCornerShape(8.dp)
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MACard),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(0.5.dp, MABorderSubtle)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(
-                modifier              = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment     = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar + nickname + stars
+                // User Avatar & Nickname
                 Row(
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier              = Modifier.weight(1f)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Box(
-                        modifier         = Modifier
-                            .size(32.dp)
+                        modifier = Modifier
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(MARed.copy(alpha = 0.2f)),
+                            .background(MARed.copy(alpha = 0.25f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text       = review.user.nickname.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                            color      = MARed,
+                            text = review.user.nickname.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                            color = MARedLight,
                             fontWeight = FontWeight.Bold,
-                            fontSize   = 14.sp
+                            fontSize = 15.sp
                         )
                     }
                     Column {
                         Text(
-                            review.user.nickname,
-                            color      = Color.White,
+                            text = review.user.nickname,
+                            color = Color.White,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize   = 13.sp
+                            fontSize = 13.sp
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             repeat(review.rating) {
                                 Text("★", color = MAGold, fontSize = 10.sp)
                             }
-                            repeat(10 - review.rating) {
-                                Text("★", color = MATextSecondary.copy(alpha = 0.3f), fontSize = 10.sp)
+                            repeat((10 - review.rating).coerceAtLeast(0)) {
+                                Text("★", color = MATextTertiary, fontSize = 10.sp)
                             }
                         }
                     }
                 }
 
-                // Rating score + delete button
-                Row(
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                // Score Badge & Delete Action
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text       = "${review.rating}/10",
-                        color      = MAGold,
+                        text = "${review.rating}/10",
+                        color = MAGold,
                         fontWeight = FontWeight.Bold,
-                        fontSize   = 13.sp
+                        fontSize = 13.sp
                     )
-                    // Delete — server enforces ownership (403 if not owner or admin)
+
                     Box {
                         IconButton(
-                            onClick  = { showDeleteConfirm = true },
+                            onClick = { showDeleteConfirm = true },
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
-                                imageVector        = Icons.Outlined.Delete,
+                                imageVector = Icons.Outlined.Delete,
                                 contentDescription = "Delete review",
-                                tint               = MATextSecondary.copy(alpha = 0.6f),
-                                modifier           = Modifier.size(16.dp)
+                                tint = MATextTertiary,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                         DropdownMenu(
-                            expanded         = showDeleteConfirm,
+                            expanded = showDeleteConfirm,
                             onDismissRequest = { showDeleteConfirm = false }
                         ) {
                             DropdownMenuItem(
-                                text    = { Text("Delete review", color = MaterialTheme.colorScheme.error) },
-                                onClick = { showDeleteConfirm = false; onDelete() },
+                                text = { Text("Delete review", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    showDeleteConfirm = false
+                                    onDelete()
+                                },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Default.Delete,
@@ -799,7 +1287,7 @@ private fun ReviewCard(review: ApiReview, onDelete: () -> Unit) {
                                 }
                             )
                             DropdownMenuItem(
-                                text    = { Text("Cancel") },
+                                text = { Text("Cancel") },
                                 onClick = { showDeleteConfirm = false }
                             )
                         }
@@ -808,9 +1296,313 @@ private fun ReviewCard(review: ApiReview, onDelete: () -> Unit) {
             }
 
             if (!review.comment.isNullOrBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(review.comment, color = MATextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = review.comment,
+                    color = MATextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
             }
+        }
+    }
+}
+
+// ── Tab 3: More Like This View ─────────────────────────────────────────────────
+
+@Composable
+private fun MoreLikeThisTabContent(
+    similarAnime: List<ApiAnime>,
+    onAnimeClick: (String) -> Unit
+) {
+    if (similarAnime.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No recommendations found.",
+                color = MATextSecondary,
+                fontSize = 13.sp
+            )
+        }
+    } else {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(similarAnime) { item ->
+                SimilarAnimeCard(anime = item, onClick = { onAnimeClick(item.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimilarAnimeCard(anime: ApiAnime, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(130.dp)
+            .pressScaleClickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(130.dp)
+                .height(185.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .border(0.5.dp, MABorderSubtle, RoundedCornerShape(10.dp))
+                .background(MACard)
+        ) {
+            AsyncImage(
+                model = anime.posterUrl,
+                contentDescription = anime.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Rating badge overlay
+            if (anime.rating > 0) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.75f),
+                    shape = RoundedCornerShape(bottomStart = 8.dp),
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = MAGold,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Text(
+                            text = "%.1f".format(anime.rating),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            if (anime.status == "ongoing") {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MASuccess)
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text("ON AIR", color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Black)
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = anime.title,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = anime.releaseYear?.toString() ?: "",
+                color = MATextSecondary,
+                fontSize = 11.sp
+            )
+            anime.totalSeasons?.let { seasons ->
+                Text(
+                    text = "${seasons} Season${if (seasons > 1) "s" else ""}",
+                    color = MATextTertiary,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+// ── Shared Helpers ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        color = Color.White,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp
+    )
+}
+
+@Composable
+private fun CastMemberCard(name: String, character: String?, imageUrl: String?) {
+    Column(
+        modifier = Modifier.width(72.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .border(1.dp, MABorderSubtle, CircleShape)
+                .background(MACard)
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = name,
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+        if (!character.isNullOrBlank()) {
+            Text(
+                text = character,
+                color = MATextSecondary,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// ── Skeleton Placeholder ───────────────────────────────────────────────────────
+
+@Composable
+private fun AnimeDetailSkeleton(onBackClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MADark)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Skeleton Hero
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(380.dp)
+                    .shimmer()
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .shimmer()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .shimmer()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .shimmer()
+                )
+            }
+        }
+
+        // Back button
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White
+            )
+        }
+    }
+}
+
+// ── Error State View ───────────────────────────────────────────────────────────
+
+@Composable
+private fun AnimeDetailErrorState(
+    error: String,
+    onRetry: () -> Unit,
+    onBackClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MADark)
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                tint = MARed,
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = error,
+                color = Color.White,
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(containerColor = MARed),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Retry", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White
+            )
         }
     }
 }
