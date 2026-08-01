@@ -37,6 +37,12 @@ android {
     }
 
     signingConfigs {
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         create("release") {
             // Credentials are passed as Gradle project properties by codemagic.yaml.
             // The .p12 keystore is decoded by the build script before Gradle runs.
@@ -67,13 +73,14 @@ android {
         }
         debug {
             isDebuggable = true
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debugConfig")
         }
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        encoding = "UTF-8"
     }
 
     kotlinOptions {
@@ -90,7 +97,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // Ship arm64-v8a only — drops ~10 MB and targets all modern Android devices
+            // Ship arm64-v8a only â€” drops ~10 MB and targets all modern Android devices
             keepDebugSymbols += "**/*.so"
         }
     }
@@ -120,7 +127,7 @@ dependencies {
     implementation(libs.retrofit.gson)
     implementation(libs.datastore.preferences)
 
-    // Firebase — BOM manages all Firebase library versions in lock-step
+    // Firebase â€” BOM manages all Firebase library versions in lock-step
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
 
