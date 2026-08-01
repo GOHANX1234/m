@@ -477,7 +477,7 @@ private fun AnimeDetailHeader(
 
                         anime.totalSeasons?.let { seasons ->
                             Text(
-                                text = "â€¢ $seasons Season${if (seasons > 1) "s" else ""}",
+                                text = "\u2022 $seasons Season${if (seasons > 1) "s" else ""}",
                                 color = MATextSecondary,
                                 fontSize = 12.sp
                             )
@@ -879,7 +879,7 @@ private fun EpisodeCard(
                         fontSize = 11.sp
                     )
                     Text(
-                        text = "â€¢",
+                        text = "\u2022",
                         color = MATextTertiary,
                         fontSize = 10.sp
                     )
@@ -1135,7 +1135,7 @@ private fun ReviewComposerCard(
                     (1..10).forEach { star ->
                         val filled = star <= selectedRating
                         Text(
-                            text = "â˜…",
+                            text = "\u2605",
                             color = if (filled) MAGold else MATextTertiary,
                             fontSize = 22.sp,
                             modifier = Modifier.clickable {
@@ -1249,10 +1249,10 @@ private fun ReviewCard(review: ApiReview, onDelete: () -> Unit) {
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             repeat(review.rating) {
-                                Text("â˜…", color = MAGold, fontSize = 10.sp)
+                                Text("\u2605", color = MAGold, fontSize = 10.sp)
                             }
                             repeat((10 - review.rating).coerceAtLeast(0)) {
-                                Text("â˜…", color = MATextTertiary, fontSize = 10.sp)
+                                Text("\u2605", color = MATextTertiary, fontSize = 10.sp)
                             }
                         }
                     }
