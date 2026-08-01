@@ -172,13 +172,13 @@ private fun launchPlayer(
         putExtra(AnimePlayerActivity.EXTRA_EPISODE_ID, episode.id)
         putExtra(
             AnimePlayerActivity.EXTRA_TITLE,
-            "${anime.title} · S${episode.season}E${episode.episodeNumber}"
+            "${anime.title} Â· S${episode.season}E${episode.episodeNumber}"
         )
     }
     context.startActivity(intent)
 }
 
-// ── Top Glass Navigation Bar ───────────────────────────────────────────────────
+// â”€â”€ Top Glass Navigation Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun TopGlassNavBar(
@@ -194,7 +194,7 @@ private fun TopGlassNavBar(
             .fillMaxWidth()
             .statusBarsPadding()
             .height(56.dp)
-            .background(MADark.copy(alpha = alpha))
+            .background(Color.Transparent)
             .padding(horizontal = 12.dp)
     ) {
         Row(
@@ -220,10 +220,10 @@ private fun TopGlassNavBar(
                 )
             }
 
-            // Animated Header Title (fades in as user scrolls)
+            // Animated Header Title (fades in cleanly as user scrolls)
             Text(
                 text = title,
-                color = Color.White.copy(alpha = (alpha * 1.2f).coerceAtMost(1f)),
+                color = Color.White.copy(alpha = (alpha * 1.5f).coerceAtMost(1f)),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 maxLines = 1,
@@ -276,7 +276,7 @@ private fun TopGlassNavBar(
     }
 }
 
-// ── Hero Banner Header with Floating Poster ────────────────────────────────────
+// â”€â”€ Hero Banner Header with Floating Poster â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AnimeDetailHeader(
@@ -290,6 +290,17 @@ private fun AnimeDetailHeader(
     val context = LocalContext.current
     val firstEpisode = remember(episodes) {
         episodes.sortedWith(compareBy({ it.season }, { it.episodeNumber })).firstOrNull()
+    }
+
+    val mediaTypeLabel = remember(anime.type) {
+        val t = anime.type.lowercase().trim()
+        when {
+            t == "anime" -> "ANIME"
+            t.contains("movie") -> "MOVIE"
+            t.contains("series") || t.contains("tv") || t.contains("show") -> "SERIES"
+            t.isNotBlank() -> t.uppercase()
+            else -> "SERIES"
+        }
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -348,7 +359,7 @@ private fun AnimeDetailHeader(
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    // Type Badge Over Poster
+                    // Dynamic Type Badge Over Poster (ANIME, SERIES, MOVIE)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -358,7 +369,7 @@ private fun AnimeDetailHeader(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "ANIME",
+                            text = mediaTypeLabel,
                             color = Color.White,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Black
@@ -466,7 +477,7 @@ private fun AnimeDetailHeader(
 
                         anime.totalSeasons?.let { seasons ->
                             Text(
-                                text = "• $seasons Season${if (seasons > 1) "s" else ""}",
+                                text = "â€¢ $seasons Season${if (seasons > 1) "s" else ""}",
                                 color = MATextSecondary,
                                 fontSize = 12.sp
                             )
@@ -476,7 +487,7 @@ private fun AnimeDetailHeader(
             }
         }
 
-        // ── Primary Call to Action & Quick Action Grid ─────────────────────────────
+        // â”€â”€ Primary Call to Action & Quick Action Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -601,7 +612,7 @@ private fun AnimeDetailHeader(
     }
 }
 
-// ── Segmented Navigation Body View ──────────────────────────────────────────────
+// â”€â”€ Segmented Navigation Body View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AnimeDetailBody(
@@ -724,7 +735,7 @@ private fun AnimeDetailBody(
     }
 }
 
-// ── Tab 0: Episodes View ───────────────────────────────────────────────────────
+// â”€â”€ Tab 0: Episodes View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun EpisodesTabContent(
@@ -868,7 +879,7 @@ private fun EpisodeCard(
                         fontSize = 11.sp
                     )
                     Text(
-                        text = "•",
+                        text = "â€¢",
                         color = MATextTertiary,
                         fontSize = 10.sp
                     )
@@ -899,7 +910,7 @@ private fun EpisodeCard(
     }
 }
 
-// ── Tab 1: Overview & Cast View ────────────────────────────────────────────────
+// â”€â”€ Tab 1: Overview & Cast View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun OverviewTabContent(anime: ApiAnime) {
@@ -1027,7 +1038,7 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
-// ── Tab 2: Reviews View ────────────────────────────────────────────────────────
+// â”€â”€ Tab 2: Reviews View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ReviewsTabContent(
@@ -1124,7 +1135,7 @@ private fun ReviewComposerCard(
                     (1..10).forEach { star ->
                         val filled = star <= selectedRating
                         Text(
-                            text = "★",
+                            text = "â˜…",
                             color = if (filled) MAGold else MATextTertiary,
                             fontSize = 22.sp,
                             modifier = Modifier.clickable {
@@ -1238,10 +1249,10 @@ private fun ReviewCard(review: ApiReview, onDelete: () -> Unit) {
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             repeat(review.rating) {
-                                Text("★", color = MAGold, fontSize = 10.sp)
+                                Text("â˜…", color = MAGold, fontSize = 10.sp)
                             }
                             repeat((10 - review.rating).coerceAtLeast(0)) {
-                                Text("★", color = MATextTertiary, fontSize = 10.sp)
+                                Text("â˜…", color = MATextTertiary, fontSize = 10.sp)
                             }
                         }
                     }
@@ -1308,7 +1319,7 @@ private fun ReviewCard(review: ApiReview, onDelete: () -> Unit) {
     }
 }
 
-// ── Tab 3: More Like This View ─────────────────────────────────────────────────
+// â”€â”€ Tab 3: More Like This View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun MoreLikeThisTabContent(
@@ -1432,7 +1443,7 @@ private fun SimilarAnimeCard(anime: ApiAnime, onClick: () -> Unit) {
     }
 }
 
-// ── Shared Helpers ─────────────────────────────────────────────────────────────
+// â”€â”€ Shared Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun SectionTitle(title: String) {
@@ -1483,7 +1494,7 @@ private fun CastMemberCard(name: String, character: String?, imageUrl: String?) 
     }
 }
 
-// ── Skeleton Placeholder ───────────────────────────────────────────────────────
+// â”€â”€ Skeleton Placeholder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AnimeDetailSkeleton(onBackClick: () -> Unit) {
@@ -1550,7 +1561,7 @@ private fun AnimeDetailSkeleton(onBackClick: () -> Unit) {
     }
 }
 
-// ── Error State View ───────────────────────────────────────────────────────────
+// â”€â”€ Error State View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AnimeDetailErrorState(
