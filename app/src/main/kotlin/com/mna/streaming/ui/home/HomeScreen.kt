@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -737,7 +738,12 @@ fun SeriesCard(series: ApiAnime, onClick: () -> Unit) {
 // â”€â”€ Movie card â€” with rating badge and duration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
-fun MovieCard(movie: Movie, onClick: () -> Unit) {
+fun MovieCard(
+    movie: Movie,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 112.dp
+) {
     val subtitle = buildString {
         append(movie.year)
         if (movie.durationSeconds > 0) {
@@ -749,6 +755,8 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
         posterUrl = movie.posterUrl,
         title     = movie.title,
         onClick   = onClick,
+        modifier  = modifier,
+        width     = width,
         rating    = movie.rating.takeIf { it > 0 },
         subtitle  = subtitle
     )
