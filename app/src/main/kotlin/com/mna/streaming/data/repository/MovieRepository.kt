@@ -1,6 +1,7 @@
 package com.mna.streaming.data.repository
 
 import com.google.gson.Gson
+import com.mna.streaming.MAApplication
 import com.mna.streaming.data.LocalProfileStore
 import com.mna.streaming.data.LocalWatchEntry
 import com.mna.streaming.data.LocalWatchlistItem
@@ -240,19 +241,29 @@ class MovieRepository(
                     val seriesTitle = content.seriesInfo?.title ?: "Unknown Series"
                     val label = buildString {
                         if ((content.season ?: 0) > 0) append("S${content.season} ")
-                        if ((content.episodeNumber ?: 0) > 0) append("E${content.episodeNumber} Â· ")
+                        if ((content.episodeNumber ?: 0) > 0) append("E${content.episodeNumber} \u2022 ")
                         append(seriesTitle)
                     }
                     // seriesId: prefer the populated seriesInfo id, fall back to the raw series ref
                     val seriesId = content.seriesInfo?.id ?: content.series
-                    val contentType = content.seriesInfo?.type ?: content.type ?: "series"
+                    var contentType = content.seriesInfo?.type ?: content.type
+                    if (seriesId != null && (contentType == null || contentType == "series" || contentType == "episode")) {
+                        val animeRepo = runCatching { MAApplication.animeRepository }.getOrNull()
+                        if (animeRepo != null) {
+                            val series = animeRepo.getCachedAnime(seriesId)
+                                ?: runCatching { animeRepo.getSeriesById(seriesId) }.getOrNull()
+                            if (series?.type != null) {
+                                contentType = series.type
+                            }
+                        }
+                    }
                     LocalWatchEntry(
                         movieId     = content.id,
                         title       = label,
                         posterUrl   = content.seriesInfo?.posterUrl ?: "",
                         targetType  = "Episode",
                         seriesId    = seriesId,
-                        contentType = contentType,
+                        contentType = contentType ?: "series",
                         updatedAt   = parseIso(entry.updatedAt)
                     )
                 }
