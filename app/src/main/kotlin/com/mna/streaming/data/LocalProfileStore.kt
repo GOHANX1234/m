@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-// ── Local data models ─────────────────────────────────────────────────────────
+// â”€â”€ Local data models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * A single locally-persisted watch history entry.
@@ -27,6 +27,8 @@ data class LocalWatchEntry(
     val targetType: String = "Movie",       // "Movie" or "Episode"
     /** For Episode entries: the parent series ID used to open the anime detail screen. Null for movies. */
     val seriesId: String? = null,
+    /** Specific content type: "movie", "anime", or "series". */
+    val contentType: String? = null,
     val updatedAt: Long = System.currentTimeMillis()
 )
 
@@ -45,12 +47,12 @@ data class LocalWatchlistItem(
     val addedAt: Long = System.currentTimeMillis()
 )
 
-// ── DataStore instance ────────────────────────────────────────────────────────
+// â”€â”€ DataStore instance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private val Context.profileDataStore: DataStore<Preferences>
     by preferencesDataStore(name = "ma_profile")
 
-// ── Store ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Persists the user's watch history and watchlist locally on-device.
@@ -71,7 +73,7 @@ class LocalProfileStore(context: Context) {
      * [dataStore]'s data flow with corruption/IO failures downgraded to an
      * empty preferences set instead of throwing. Without this, a single
      * corrupted read (e.g. an interrupted write from a low-battery kill)
-     * would throw out of the collecting coroutine — on an uncaught
+     * would throw out of the collecting coroutine â€” on an uncaught
      * viewModelScope launch that reads as "history/watchlist silently never
      * loads" rather than a visible crash.
      */
@@ -91,7 +93,7 @@ class LocalProfileStore(context: Context) {
         const val MAX_SEARCH_HISTORY = 12   // keep newest 12 search terms
     }
 
-    // ── Watch History ─────────────────────────────────────────────────────────
+    // â”€â”€ Watch History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun getWatchHistory(): List<LocalWatchEntry> {
         val json = safeData.map { it[KEY_WATCH_HISTORY] }.firstOrNull()
@@ -115,7 +117,7 @@ class LocalProfileStore(context: Context) {
         dataStore.edit { it[KEY_WATCH_HISTORY] = gson.toJson(saved) }
     }
 
-    // ── Watchlist ─────────────────────────────────────────────────────────────
+    // â”€â”€ Watchlist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun getWatchlist(): List<LocalWatchlistItem> {
         val json = safeData.map { it[KEY_WATCHLIST] }.firstOrNull()
@@ -141,10 +143,10 @@ class LocalProfileStore(context: Context) {
         dataStore.edit { it[KEY_WATCHLIST] = gson.toJson(updated) }
     }
 
-    // ── Search history ────────────────────────────────────────────────────────
+    // â”€â”€ Search history â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //
     // Device-local list of past search terms shown on the Search screen when
-    // the query field is empty. Not account data (kept across sign-out) —
+    // the query field is empty. Not account data (kept across sign-out) â€”
     // purely a typing-shortcut convenience, like a browser's address bar.
 
     suspend fun getSearchHistory(): List<String> {
@@ -182,7 +184,7 @@ class LocalProfileStore(context: Context) {
         dataStore.edit { it.remove(KEY_SEARCH_HISTORY) }
     }
 
-    // ── Session cleanup ───────────────────────────────────────────────────────
+    // â”€â”€ Session cleanup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Called on sign-out to wipe locally cached profile data. */
     suspend fun clearAll() {
