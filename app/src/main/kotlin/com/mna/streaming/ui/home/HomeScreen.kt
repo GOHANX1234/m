@@ -70,7 +70,7 @@ fun HomeScreen(
     val uiState by homeViewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
 
-    // ── Hero auto-rotation ─────────────────────────────────────────────────────
+    // â”€â”€ Hero auto-rotation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var heroIndex by remember { mutableIntStateOf(0) }
     LaunchedEffect(uiState.featuredItems.size) {
         if (uiState.featuredItems.size > 1) {
@@ -81,7 +81,7 @@ fun HomeScreen(
         }
     }
 
-    // Gradient scrim stays constant regardless of scroll position — the bar
+    // Gradient scrim stays constant regardless of scroll position â€” the bar
     // itself is always fully transparent, this is just for logo/icon legibility
     // against the hero art directly behind it.
     val topGradientAlpha = 1f
@@ -105,7 +105,7 @@ fun HomeScreen(
             else -> {
                 LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
 
-                    // ── Hero banner ─────────────────────────────────────────
+                    // â”€â”€ Hero banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     if (uiState.featuredItems.isNotEmpty()) {
                         item {
                             Box {
@@ -163,7 +163,7 @@ fun HomeScreen(
                         }
                     }
 
-                    // ── Genre filter chips ──────────────────────────────────
+                    // â”€â”€ Genre filter chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     if (uiState.availableGenres.isNotEmpty()) {
                         item {
                             Spacer(Modifier.height(14.dp))
@@ -175,7 +175,7 @@ fun HomeScreen(
                         }
                     }
 
-                    // ── Movie content ─────────────────────────────────────────
+                    // â”€â”€ Movie content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     // If a genre is selected, show a single filtered row.
                     // Otherwise show the standard New Releases / Popular / Top Rated rows.
                     val selectedGenre = uiState.selectedGenre
@@ -235,7 +235,7 @@ fun HomeScreen(
                         }
                     }
 
-                    // ── Web Series section ────────────────────────────────
+                    // â”€â”€ Web Series section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     if (uiState.webSeries.isNotEmpty()) {
                         item {
                             Spacer(Modifier.height(24.dp))
@@ -252,7 +252,7 @@ fun HomeScreen(
                         }
                     }
 
-                    // ── Top Actors section (bottom) ────────────────────────
+                    // â”€â”€ Top Actors section (bottom) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     if (uiState.actors.isNotEmpty()) {
                         item {
                             Spacer(Modifier.height(24.dp))
@@ -276,10 +276,10 @@ fun HomeScreen(
             }
         }
 
-        // ── Top bar overlay ────────────────────────────────────────────────
+        // â”€â”€ Top bar overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Box(modifier = Modifier.fillMaxWidth()) {
 
-            // Layer 1 — Persistent gradient scrim.
+            // Layer 1 â€” Persistent gradient scrim.
             // Always present so the logo stays readable over any hero image.
             // Gracefully fades away as the solid backdrop rises.
             Box(
@@ -301,10 +301,10 @@ fun HomeScreen(
                     )
             )
 
-            // Bar stays fully transparent at all scroll positions — only the
+            // Bar stays fully transparent at all scroll positions â€” only the
             // persistent gradient scrim above keeps the logo/icons readable.
 
-            // Layer 2 — Bar content.
+            // Layer 2 â€” Bar content.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -314,7 +314,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
-                // Logo — warm red glow keeps it vivid in every lighting
+                // Logo â€” warm red glow keeps it vivid in every lighting
                 // condition, whether over a bright hero image or a dark surface.
                 Text(
                     text          = "M&A",
@@ -331,7 +331,7 @@ fun HomeScreen(
                     )
                 )
 
-                // Action icons — 44 dp touch targets, tighter spacing.
+                // Action icons â€” 44 dp touch targets, tighter spacing.
                 Row(
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -364,7 +364,7 @@ fun HomeScreen(
     }
 }
 
-// ── Loading skeleton ─────────────────────────────────────────────────────────
+// â”€â”€ Loading skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun HomeLoadingSkeleton() {
@@ -405,7 +405,7 @@ private fun HomeLoadingSkeleton() {
     }
 }
 
-// ── Genre filter chips ────────────────────────────────────────────────────────
+// â”€â”€ Genre filter chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun GenreChipsRow(
@@ -457,7 +457,7 @@ private fun GenreChip(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// ── Netflix-style numbered actor card ─────────────────────────────────────────
+// â”€â”€ Netflix-style numbered actor card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Layout:  [ big number ][ poster image ]
 //                  [ actor name ]
@@ -482,7 +482,7 @@ fun ActorCard(actor: ActorItem, onClick: () -> Unit) {
                 .fillMaxWidth()
                 .height(imageHeight)
         ) {
-            // ── Large rank number — drawn first so image sits on top of it ──
+            // â”€â”€ Large rank number â€” drawn first so image sits on top of it â”€â”€
             Text(
                 text       = actor.rank.toString(),
                 fontSize   = 72.sp,
@@ -501,7 +501,7 @@ fun ActorCard(actor: ActorItem, onClick: () -> Unit) {
                     .padding(bottom = 2.dp)
             )
 
-            // ── Actor photo — overlaps the right half of the number ──────────
+            // â”€â”€ Actor photo â€” overlaps the right half of the number â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (actor.image != null) {
                 AsyncImage(
                     model              = actor.image,
@@ -534,7 +534,7 @@ fun ActorCard(actor: ActorItem, onClick: () -> Unit) {
             }
         }
 
-        // ── Actor name — right-aligned under the image ────────────────────
+        // â”€â”€ Actor name â€” right-aligned under the image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(6.dp))
         Text(
             text     = actor.name,
@@ -547,7 +547,7 @@ fun ActorCard(actor: ActorItem, onClick: () -> Unit) {
     }
 }
 
-// ── Hero banner ───────────────────────────────────────────────────────────────
+// â”€â”€ Hero banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun HeroBanner(
@@ -626,7 +626,7 @@ private fun HeroBanner(
                     genres.take(3).forEachIndexed { index, genre ->
                         Text(genre, color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
                         if (index < genres.take(3).lastIndex) {
-                            Text(" • ", color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(" \u2022 ", color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -660,7 +660,7 @@ private fun HeroBanner(
                     fontWeight = FontWeight.Bold
                 )
                 if (year != null) {
-                    Text("•", color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text("\u2022", color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
                     Text(
                         text  = year.toString(),
                         color = MATextSecondary,
@@ -668,7 +668,7 @@ private fun HeroBanner(
                     )
                 }
                 if (metaExtra != null) {
-                    Text("•", color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text("\u2022", color = MATextSecondary, style = MaterialTheme.typography.labelSmall)
                     Text(
                         text  = metaExtra,
                         color = MATextSecondary,
@@ -719,7 +719,7 @@ private fun HeroBanner(
     }
 }
 
-// ── Series card — for web series row ─────────────────────────────────────────
+// â”€â”€ Series card â€” for web series row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun SeriesCard(series: ApiAnime, onClick: () -> Unit) {
@@ -734,14 +734,14 @@ fun SeriesCard(series: ApiAnime, onClick: () -> Unit) {
     )
 }
 
-// ── Movie card — with rating badge and duration ───────────────────────────────
+// â”€â”€ Movie card â€” with rating badge and duration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun MovieCard(movie: Movie, onClick: () -> Unit) {
     val subtitle = buildString {
         append(movie.year)
         if (movie.durationSeconds > 0) {
-            append("  •  ")
+            append("  \u2022  ")
             append(movie.durationFormatted)
         }
     }
