@@ -145,6 +145,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
             // Glassmorphic Top Bar
             Row(
@@ -404,15 +405,15 @@ private fun ProfileHeader(
                 )
 
                 val isAdmin = user?.role == "admin"
-                val badgeText = if (isAdmin) "ADMIN" else "VIP MEMBER"
-                val badgeBg = if (isAdmin) MARed.copy(alpha = 0.2f) else MAGold.copy(alpha = 0.15f)
-                val badgeFg = if (isAdmin) MARedLight else MAGold
+                val badgeText = if (isAdmin) "ADMIN" else "MEMBER"
+                val badgeBg = if (isAdmin) MARed.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f)
+                val badgeFg = if (isAdmin) MARedLight else Color.White
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(badgeBg)
-                        .border(1.dp, badgeFg.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        .border(1.dp, badgeFg.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Row(
@@ -420,7 +421,7 @@ private fun ProfileHeader(
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Icon(
-                            imageVector = if (isAdmin) Icons.Default.Shield else Icons.Default.Star,
+                            imageVector = if (isAdmin) Icons.Default.Shield else Icons.Default.Person,
                             contentDescription = null,
                             tint = badgeFg,
                             modifier = Modifier.size(11.dp)
@@ -779,8 +780,8 @@ private fun RequestsTab(
         ExtendedFloatingActionButton(
             onClick = onNewRequest,
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 36.dp, start = 20.dp, end = 20.dp)
                 .pressScaleClickable(onClick = onNewRequest),
             containerColor = MARed,
             contentColor = Color.White,
