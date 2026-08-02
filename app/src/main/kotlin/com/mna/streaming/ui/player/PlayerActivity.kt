@@ -197,7 +197,7 @@ fun PlayerScreen(
                     CircularProgressIndicator(color = MARed)
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text  = "Loading $titleâ€¦",
+                        text  = "Loading $title...",
                         color = MATextSecondary
                     )
                 }
