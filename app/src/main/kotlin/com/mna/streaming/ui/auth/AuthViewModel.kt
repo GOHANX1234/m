@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// ── UI state models ───────────────────────────────────────────────────────────
+// â”€â”€ UI state models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -28,7 +28,7 @@ data class AuthUiState(
     val signupSuccess: Boolean = false        // navigate to Login after successful signup
 )
 
-// ── ViewModel ────────────────────────────────────────────────────────────────
+// â”€â”€ ViewModel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class AuthViewModel(
     private val authRepository: AuthRepository
@@ -41,21 +41,30 @@ class AuthViewModel(
         restoreSession()
     }
 
-    // ── Session restore ───────────────────────────────────────────────────────
+    // â”€â”€ Session restore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private fun restoreSession() {
         viewModelScope.launch {
-            val user = authRepository.restoreSession()
+            val fastUser = authRepository.getFastCachedUser()
+            if (fastUser != null) {
+                _uiState.update {
+                    it.copy(
+                        currentUser      = fastUser,
+                        isSessionChecked = true
+                    )
+                }
+            }
+            val serverUser = authRepository.restoreSession()
             _uiState.update {
                 it.copy(
-                    currentUser      = user,
+                    currentUser      = serverUser,
                     isSessionChecked = true
                 )
             }
         }
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
+    // â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
@@ -67,7 +76,7 @@ class AuthViewModel(
                         it.copy(isLoading = false, currentUser = result.user)
                     }
                     // Fire-and-forget: obtain a native Bearer token and register the FCM
-                    // device token with the server.  Failures are swallowed — push
+                    // device token with the server.  Failures are swallowed â€” push
                     // notifications are non-critical and must never block login.
                     launch {
                         authRepository.mobileLoginAndRegisterToken(email.trim(), password)
@@ -86,7 +95,7 @@ class AuthViewModel(
         }
     }
 
-    // ── Sign Up ───────────────────────────────────────────────────────────────
+    // â”€â”€ Sign Up â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fun signUp(nickname: String, email: String, password: String) {
         viewModelScope.launch {
@@ -111,7 +120,7 @@ class AuthViewModel(
         }
     }
 
-    // ── Sign Out ──────────────────────────────────────────────────────────────
+    // â”€â”€ Sign Out â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fun signOut() {
         viewModelScope.launch {
@@ -126,7 +135,7 @@ class AuthViewModel(
         }
     }
 
-    // ── Error clearing ────────────────────────────────────────────────────────
+    // â”€â”€ Error clearing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fun clearLoginErrors() {
         _uiState.update { it.copy(loginError = null, loginFieldErrors = emptyMap()) }
@@ -138,7 +147,7 @@ class AuthViewModel(
         }
     }
 
-    // ── Factory ───────────────────────────────────────────────────────────────
+    // â”€â”€ Factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
