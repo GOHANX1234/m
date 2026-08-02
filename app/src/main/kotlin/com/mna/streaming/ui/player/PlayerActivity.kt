@@ -35,11 +35,11 @@ import kotlinx.coroutines.launch
  * Fullscreen player Activity.
  *
  * Receives a movie ID, fetches the embed URL from the API (via a path decoded
- * from the native C security layer — never a plain string in Kotlin code),
+ * from the native C security layer â€” never a plain string in Kotlin code),
  * and loads it inside a WebView with JS and autoplay enabled.
  *
  * Also fires:
- *  - POST /api/views — records a unique view on playback start
+ *  - POST /api/views â€” records a unique view on playback start
  */
 class PlayerActivity : ComponentActivity() {
 
@@ -47,7 +47,7 @@ class PlayerActivity : ComponentActivity() {
         const val EXTRA_MOVIE_ID = "movie_id"
         const val EXTRA_TITLE    = "title"
         // Legacy constant kept for any call-sites that still pass a direct stream URL;
-        // ignored by this Activity — all streaming now goes through the embed endpoint.
+        // ignored by this Activity â€” all streaming now goes through the embed endpoint.
         const val EXTRA_STREAM_URL = "stream_url"
     }
 
@@ -93,7 +93,7 @@ class PlayerActivity : ComponentActivity() {
     }
 }
 
-// ── Ad-blocker constants ──────────────────────────────────────────────────────
+// â”€â”€ Ad-blocker constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Domains whose requests are silently dropped by [shouldInterceptRequest].
@@ -103,7 +103,7 @@ class PlayerActivity : ComponentActivity() {
  * because "exoclick.com" is in this set).
  */
 private val AD_HOSTS = setOf(
-    // ── General programmatic ──────────────────────────────────────────────
+    // â”€â”€ General programmatic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     "googlesyndication.com", "googleadservices.com", "doubleclick.net",
     "adnxs.com", "appnexus.com", "advertising.com",
     "rubiconproject.com", "pubmatic.com", "openx.net",
@@ -112,7 +112,7 @@ private val AD_HOSTS = setOf(
     "mgid.com", "adcash.com", "bidvertiser.com",
     "adform.net", "primis.tech", "vidazoo.com",
     "undertone.com", "sekindo.com", "rhythmone.com",
-    // ── Streaming / embed-player ad networks ─────────────────────────────
+    // â”€â”€ Streaming / embed-player ad networks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     "exoclick.com", "trafficjunky.com", "juicyads.com",
     "hilltopads.net", "hilltopads.com",
     "adsterra.com", "adsterraserver.com", "adsterraaudio.com",
@@ -129,7 +129,7 @@ private val AD_HOSTS = setOf(
     "trackedlink.net", "ptrk.io",
     "getpopads.com", "popmyads.com",
     "adf.ly", "adfoc.us",
-    // ── Tracking / fingerprinting ─────────────────────────────────────────
+    // â”€â”€ Tracking / fingerprinting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     "scorecardresearch.com", "quantserve.com",
     "chartbeat.com", "hotjar.com",
     "mouseflow.com", "newrelic.com",
@@ -140,7 +140,7 @@ private val AD_HOSTS = setOf(
  * JavaScript injected into every page once it finishes loading.
  *
  * Defence layers:
- *  1. Neutralise [window.open] — the primary popunder mechanism.
+ *  1. Neutralise [window.open] â€” the primary popunder mechanism.
  *  2. Capture-phase click listener that cancels any anchor navigation to a
  *     domain other than the player's own origin.  Running in the capture
  *     phase means our handler fires *before* any listener the embed page
@@ -150,7 +150,7 @@ private val JS_AD_BLOCK = """
 (function() {
     'use strict';
 
-    // 1. Neutralise window.open — blocks popunder / new-tab ads entirely.
+    // 1. Neutralise window.open â€” blocks popunder / new-tab ads entirely.
     window.open = function() { return null; };
 
     // 2. Block off-origin anchor navigations triggered by click overlays.
@@ -168,12 +168,12 @@ private val JS_AD_BLOCK = """
                 e.preventDefault();
                 e.stopImmediatePropagation();
             }
-        } catch (err) { /* malformed URL — ignore */ }
+        } catch (err) { /* malformed URL â€” ignore */ }
     }, true /* capture phase */);
 })();
 """.trimIndent()
 
-// ── Player screen ─────────────────────────────────────────────────────────────
+// â”€â”€ Player screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -197,7 +197,7 @@ fun PlayerScreen(
                     CircularProgressIndicator(color = MARed)
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text  = "Loading $title…",
+                        text  = "Loading $titleâ€¦",
                         color = MATextSecondary
                     )
                 }
@@ -222,35 +222,33 @@ fun PlayerScreen(
                                 ViewGroup.LayoutParams.MATCH_PARENT
                             )
 
-                            settings.apply {
-                                javaScriptEnabled             = true
-                                domStorageEnabled             = true
-                                mediaPlaybackRequiresUserGesture = false
-                                allowFileAccess               = false
-                                // Allow mixed content for third-party embed players
-                                mixedContentMode              = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                                useWideViewPort               = true
-                                loadWithOverviewMode          = true
-                                builtInZoomControls           = false
-                                displayZoomControls           = false
-                                // Required for WebChromeClient.onCreateWindow to fire.
-                                // Without this flag, window.open() calls are never routed
-                                // through onCreateWindow — it silently does nothing instead.
-                                // We override onCreateWindow to return false, so all popup
-                                // windows are discarded at the WebView level.
-                                setSupportMultipleWindows(true)
+                            val webViewInstance = this
+                            // Enable third-party cookies required by iframe player hosts (megaplay, megacloud, etc.)
+                            CookieManager.getInstance().apply {
+                                setAcceptCookie(true)
+                                setAcceptThirdPartyCookies(webViewInstance, true)
                             }
 
-                            // Derive the embed player's own host so we can allow its
-                            // internal navigation while blocking everything else.
-                            val embedHost = Uri.parse(embedUrl).host ?: ""
+                            settings.apply {
+                                javaScriptEnabled                = true
+                                domStorageEnabled                = true
+                                databaseEnabled                  = true
+                                mediaPlaybackRequiresUserGesture = false
+                                allowFileAccess                  = true
+                                allowContentAccess               = true
+                                mixedContentMode                 = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                useWideViewPort                  = true
+                                loadWithOverviewMode             = true
+                                builtInZoomControls              = false
+                                displayZoomControls              = false
+                                javaScriptCanOpenWindowsAutomatically = false
+                                setSupportMultipleWindows(true)
+                                userAgentString                  = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                            }
 
                             webChromeClient = object : WebChromeClient() {
 
-                                // ── Popup / popunder blocker ──────────────────
-                                // window.open() calls land here. Returning false
-                                // tells the WebView to discard the new window
-                                // request, killing popup and popunder ads entirely.
+                                // â”€â”€ Popup / popunder blocker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                 override fun onCreateWindow(
                                     view: WebView?,
                                     isDialog: Boolean,
@@ -258,7 +256,12 @@ fun PlayerScreen(
                                     resultMsg: android.os.Message?
                                 ): Boolean = false
 
-                                // ── Fullscreen video support ──────────────────
+                                // â”€â”€ Media permission support for iframe video streams â”€â”€
+                                override fun onPermissionRequest(request: PermissionRequest?) {
+                                    request?.grant(request.resources)
+                                }
+
+                                // â”€â”€ Fullscreen video support â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                 override fun onShowCustomView(view: android.view.View?, callback: CustomViewCallback?) {
                                     val activity = ctx as? ComponentActivity ?: return
                                     val window = activity.window
@@ -280,33 +283,21 @@ fun PlayerScreen(
 
                             webViewClient = object : WebViewClient() {
 
-                                // ── Navigation redirect blocker ───────────────
-                                // Two overloads are needed:
-                                //  • shouldOverrideUrlLoading(request) — API 24+
-                                //    handles http/https navigations.
-                                //  • shouldOverrideUrlLoading(url: String) — the
-                                //    deprecated String overload that Android still
-                                //    calls for non-http schemes like intent://.
-                                //    Without it, the WebView tries to load the
-                                //    intent:// URL, Android can't handle it inside
-                                //    a WebView, and shows "Web page not available".
-                                //
-                                // Both block everything except the embed player's
-                                // own host.  Non-http schemes are always blocked.
-
+                                // â”€â”€ Navigation redirect blocker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                // Allows iframe sources (isForMainFrame = false) and valid
+                                // video hosts while blocking ad networks and deep-link schemes.
                                 override fun shouldOverrideUrlLoading(
                                     view: WebView?,
                                     request: WebResourceRequest?
                                 ): Boolean {
-                                    val uri    = request?.url ?: return true
-                                    val scheme = uri.scheme ?: return true
-                                    // Block any non-web scheme (intent://, market://,
-                                    // tel:, javascript:, etc.) immediately.
+                                    val uri    = request?.url ?: return false
+                                    val scheme = uri.scheme ?: return false
                                     if (scheme != "http" && scheme != "https") return true
-                                    val host    = uri.host ?: return true
-                                    val allowed = host == embedHost ||
-                                        host.endsWith(".$embedHost")
-                                    return !allowed  // true = block, false = allow
+                                    val host   = uri.host?.lowercase() ?: return false
+                                    val isAd   = AD_HOSTS.any { blocked -> host == blocked || host.endsWith(".$blocked") }
+                                    if (isAd) return true
+                                    if (request.isForMainFrame == false) return false
+                                    return false
                                 }
 
                                 @Suppress("OVERRIDE_DEPRECATION")
@@ -314,36 +305,28 @@ fun PlayerScreen(
                                     view: WebView?,
                                     url: String?
                                 ): Boolean {
-                                    if (url == null) return true
+                                    if (url == null) return false
                                     return try {
                                         val uri    = Uri.parse(url)
-                                        val scheme = uri.scheme ?: return true
+                                        val scheme = uri.scheme ?: return false
                                         if (scheme != "http" && scheme != "https") return true
-                                        val host    = uri.host ?: return true
-                                        val allowed = host == embedHost ||
-                                            host.endsWith(".$embedHost")
-                                        !allowed
+                                        val host   = uri.host?.lowercase() ?: return false
+                                        AD_HOSTS.any { blocked -> host == blocked || host.endsWith(".$blocked") }
                                     } catch (e: Exception) {
-                                        true  // block anything we can't parse
+                                        false
                                     }
                                 }
 
-                                // ── Resource-level ad blocker ─────────────────
-                                // Intercepts every sub-resource the page loads
-                                // (scripts, images, XHR). Requests whose host
-                                // matches AD_HOSTS get an instant empty response
-                                // so the ad script never downloads or executes.
+                                // â”€â”€ Resource-level ad blocker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                 override fun shouldInterceptRequest(
                                     view: WebView?,
                                     request: WebResourceRequest?
                                 ): WebResourceResponse? {
-                                    val host = request?.url?.host ?: return null
+                                    val host = request?.url?.host?.lowercase() ?: return null
                                     val blocked = AD_HOSTS.any { blocked ->
                                         host == blocked || host.endsWith(".$blocked")
                                     }
                                     return if (blocked) {
-                                        // Return an empty body — no redirect, no error,
-                                        // the page just gets nothing for that request.
                                         WebResourceResponse(
                                             "text/plain", "utf-8",
                                             ByteArrayInputStream(ByteArray(0))
@@ -351,11 +334,7 @@ fun PlayerScreen(
                                     } else null
                                 }
 
-                                // ── JS injection ──────────────────────────────
-                                // Injected after each page load. Overrides
-                                // window.open and cancels off-origin anchor
-                                // clicks in the capture phase so they fire before
-                                // the player's own click listeners.
+                                // â”€â”€ JS injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)
                                     view?.evaluateJavascript(JS_AD_BLOCK, null)
@@ -366,7 +345,7 @@ fun PlayerScreen(
                         }
                     },
                     update = { webView ->
-                        // No-op — URL is set once in factory
+                        // No-op â€” URL is set once in factory
                     },
                     modifier = Modifier.fillMaxSize()
                 )
