@@ -40,14 +40,24 @@ import kotlinx.coroutines.delay
  * splash layout cannot express.
  */
 @Composable
-fun LaunchSplash(onFinished: () -> Unit) {
+fun LaunchSplash(
+    isSessionChecked: Boolean = true,
+    onFinished: () -> Unit
+) {
     var startMotion by remember { mutableStateOf(false) }
+    var minTimeElapsed by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(90)
         startMotion = true
         delay(1_150)
-        onFinished()
+        minTimeElapsed = true
+    }
+
+    LaunchedEffect(minTimeElapsed, isSessionChecked) {
+        if (minTimeElapsed && isSessionChecked) {
+            onFinished()
+        }
     }
 
     val logoOffset by animateDpAsState(
