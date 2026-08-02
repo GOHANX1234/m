@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mna.streaming.navigation.MANavHost
+import com.mna.streaming.ui.auth.AuthViewModel
 import com.mna.streaming.ui.security.TamperDetectedScreen
 import com.mna.streaming.ui.splash.LaunchSplash
 import com.mna.streaming.ui.theme.MATheme
@@ -25,20 +26,20 @@ import com.mna.streaming.ui.update.UpdateViewModel
 class MainActivity : ComponentActivity() {
 
     companion object {
-        /** Intent extra key — FCM notification content type ("movie" | "anime" | "series"). */
+        /** Intent extra key â€” FCM notification content type ("movie" | "anime" | "series"). */
         const val EXTRA_CONTENT_TYPE = "contentType"
-        /** Intent extra key — MongoDB content document ID. */
+        /** Intent extra key â€” MongoDB content document ID. */
         const val EXTRA_CONTENT_ID   = "contentId"
     }
 
     /**
      * Launcher for the POST_NOTIFICATIONS runtime permission (Android 13+).
-     * The result is intentionally not acted upon beyond what the OS provides —
+     * The result is intentionally not acted upon beyond what the OS provides â€”
      * if the user denies we respect that silently.
      */
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* granted or denied — no additional action needed */ }
+    ) { /* granted or denied â€” no additional action needed */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -57,20 +58,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MATheme {
-                // ── Integrity gate ────────────────────────────────────────
+                // â”€â”€ Integrity gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 //
                 // MAApplication.isTampered is set synchronously in
                 // Application.onCreate() before this Activity is created.
                 // If the APK has been modified or re-signed, we show the
                 // blocking TamperDetectedScreen and nothing else.  The
-                // normal app UI — nav graph, update dialogs, splash — is
+                // normal app UI â€” nav graph, update dialogs, splash â€” is
                 // never rendered in a tampered build.
                 if (MAApplication.isTampered) {
                     TamperDetectedScreen()
                     return@MATheme
                 }
 
-                // ── Normal app flow ───────────────────────────────────────
+                // â”€â”€ Normal app flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
+                val authUiState by authViewModel.uiState.collectAsState()
+
                 val updateViewModel: UpdateViewModel = viewModel()
                 val updateState by updateViewModel.state.collectAsState()
 
@@ -78,6 +82,7 @@ class MainActivity : ComponentActivity() {
 
                 if (showLaunchSplash) {
                     LaunchSplash(
+                        isSessionChecked = authUiState.isSessionChecked,
                         onFinished = {
                             showLaunchSplash = false
                             // Trigger update check as soon as the custom splash finishes.
@@ -89,7 +94,10 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    MANavHost(pendingDeepLink = pendingDeepLink)
+                    MANavHost(
+                        authViewModel   = authViewModel,
+                        pendingDeepLink = pendingDeepLink
+                    )
 
                     // Overlay update dialogs on top of the nav host so they don't
                     // interfere with any existing navigation state.
@@ -106,14 +114,14 @@ class MainActivity : ComponentActivity() {
                                 onDismiss = { updateViewModel.dismissOptionalUpdate() }
                             )
                         }
-                        else -> { /* Idle / NoUpdate — show nothing */ }
+                        else -> { /* Idle / NoUpdate â€” show nothing */ }
                     }
                 }
             }
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
