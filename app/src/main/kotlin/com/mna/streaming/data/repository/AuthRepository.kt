@@ -28,7 +28,7 @@ import kotlin.coroutines.resume
  *
  * Sign-in uses OkHttp directly (not Retrofit) so we can:
  *  - Inspect the HTTP status code (NextAuth always returns 200 for credential
- *    failures — failure is signalled by "error=CredentialsSignin" in the URL).
+ *    failures â€” failure is signalled by "error=CredentialsSignin" in the URL).
  *  - Intercept 302 redirects that indicate CSRF or other errors.
  *
  * All other calls go through the Retrofit AuthApiService.
@@ -49,7 +49,21 @@ class AuthRepository(
     private val gson    = Gson()
     private val json    = "application/json; charset=utf-8".toMediaType()
 
-    // ── Startup session restore ───────────────────────────────────────────────
+    // â”€â”€ Startup session restore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    /**
+     * Fast non-network local check used during splash screen.
+     * Pre-populates the CookieJar and returns the cached [SessionUser] if a session token exists.
+     */
+    suspend fun getFastCachedUser(): SessionUser? = withContext(Dispatchers.IO) {
+        val token = sessionManager.getSessionToken() ?: return@withContext null
+        apiClient.cookieJar.preload(
+            host        = "sarrows.vercel.app",
+            cookieName  = "__Secure-authjs.session-token",
+            cookieValue = token
+        )
+        sessionManager.getSavedUser()
+    }
 
     /**
      * Called on app start. If a session token is saved in DataStore, pre-loads
@@ -80,12 +94,12 @@ class AuthRepository(
                 null
             }
         } catch (e: Exception) {
-            // Network unavailable — fall back to cached user for offline UX
+            // Network unavailable â€” fall back to cached user for offline UX
             sessionManager.getSavedUser()
         }
     }
 
-    // ── Sign Up ───────────────────────────────────────────────────────────────
+    // â”€â”€ Sign Up â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun signUp(
         nickname: String,
@@ -96,7 +110,7 @@ class AuthRepository(
             val response = service.signUp(SignUpRequest(nickname, email, password))
 
             if (response.code() == 201) {
-                // Success — the body says {"success":true}
+                // Success â€” the body says {"success":true}
                 return@withContext AuthResult.Success(
                     SessionUser("", nickname, email, null, "user")
                 )
@@ -118,16 +132,16 @@ class AuthRepository(
         }
     }
 
-    // ── Sign In ───────────────────────────────────────────────────────────────
+    // â”€â”€ Sign In â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Full NextAuth credentials sign-in flow:
      *
-     *  1. GET /api/auth/csrf       → csrfToken + __Host-authjs.csrf-token cookie
+     *  1. GET /api/auth/csrf       â†’ csrfToken + __Host-authjs.csrf-token cookie
      *  2. POST /api/auth/callback/credentials (form-encoded)
-     *     → 302 to callbackUrl on success (session cookie set)
-     *     → 302 to /api/auth/error?error=CredentialsSignin on failure
-     *  3. GET /api/auth/session    → retrieve and cache user data
+     *     â†’ 302 to callbackUrl on success (session cookie set)
+     *     â†’ 302 to /api/auth/error?error=CredentialsSignin on failure
+     *  3. GET /api/auth/session    â†’ retrieve and cache user data
      *
      *  NOTE: the endpoint is /callback/credentials, NOT /signin/credentials.
      *  /signin/credentials is the HTML sign-in page handler and always redirects
@@ -135,7 +149,7 @@ class AuthRepository(
      */
     suspend fun signIn(email: String, password: String): AuthResult =
         withContext(Dispatchers.IO) {
-            // Step 1 — CSRF token (Retrofit; CookieJar auto-stores the csrf cookie)
+            // Step 1 â€” CSRF token (Retrofit; CookieJar auto-stores the csrf cookie)
             val csrfToken = try {
                 service.getCsrfToken().csrfToken
             } catch (e: Exception) {
@@ -144,7 +158,7 @@ class AuthRepository(
                 )
             }
 
-            // Step 2 — Submit credentials via OkHttp for full response control
+            // Step 2 â€” Submit credentials via OkHttp for full response control
             val formBody = FormBody.Builder()
                 .add("csrfToken", csrfToken)
                 .add("email", email)
@@ -171,7 +185,7 @@ class AuthRepository(
             // Detect failure:
             //  - Success: 302 with a clean location (callbackUrl, no "error=")
             //  - Failure: 302 to /api/auth/error?error=CredentialsSignin
-            //  Do NOT fail on a bare 3xx — a successful login also returns 302.
+            //  Do NOT fail on a bare 3xx â€” a successful login also returns 302.
             val isFailure = locationHeader.contains("error=") ||
                 responseBody.contains("error=CredentialsSignin") ||
                 (responseBody.isNotBlank() && runCatching {
@@ -182,7 +196,7 @@ class AuthRepository(
                 return@withContext AuthResult.Error("Invalid email or password")
             }
 
-            // Step 3 — Fetch session to get user object
+            // Step 3 â€” Fetch session to get user object
             val session = try {
                 service.getSession()
             } catch (e: Exception) {
@@ -190,13 +204,13 @@ class AuthRepository(
             }
 
             val user = session.user
-                ?: return@withContext AuthResult.Error("Login failed — session not created")
+                ?: return@withContext AuthResult.Error("Login failed â€” session not created")
 
             sessionManager.saveUser(user)
             return@withContext AuthResult.Success(user)
         }
 
-    // ── Sign Out ──────────────────────────────────────────────────────────────
+    // â”€â”€ Sign Out â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun signOut(): Unit = withContext(Dispatchers.IO) {
         try {
@@ -216,25 +230,25 @@ class AuthRepository(
         }
     }
 
-    // ── Session check ─────────────────────────────────────────────────────────
+    // â”€â”€ Session check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     suspend fun getCurrentSession(): SessionResponse? = withContext(Dispatchers.IO) {
         try { service.getSession() } catch (_: Exception) { null }
     }
 
-    // ── Push notifications — mobile login + device token registration ─────────
+    // â”€â”€ Push notifications â€” mobile login + device token registration â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Obtains a native Bearer token via `/api/auth/mobile/login`, then registers
      * the current FCM device token with `/api/notifications/device-token`.
      *
-     * Called after a successful NextAuth sign-in. All failures are swallowed —
+     * Called after a successful NextAuth sign-in. All failures are swallowed â€”
      * push notifications are a non-critical feature and must never block login.
      */
     suspend fun mobileLoginAndRegisterToken(email: String, password: String) =
         withContext(Dispatchers.IO) {
             runCatching {
-                // Step 1 — get a native Bearer token
+                // Step 1 â€” get a native Bearer token
                 val loginBody = gson.toJson(MobileLoginRequest(email, password))
                     .toRequestBody(json)
                 val loginReq = Request.Builder()
@@ -248,7 +262,7 @@ class AuthRepository(
                     ?: return@runCatching
                 sessionManager.saveNativeToken(mobileLogin.accessToken)
 
-                // Step 2 — register the FCM token
+                // Step 2 â€” register the FCM token
                 registerDeviceTokenWithBearer(mobileLogin.accessToken)
             }
         }
@@ -286,7 +300,7 @@ class AuthRepository(
         sessionManager.saveNativeToken("")
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
+    // â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Fetches the current FCM registration token from the Firebase SDK.
