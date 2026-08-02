@@ -56,6 +56,7 @@ android {
             keyPassword = project.findProperty("KEY_PASSWORD") as String?
                 ?: System.getenv("KEY_PASSWORD")
                 ?: "Ma@Streaming2024"
+            enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = true
         }
