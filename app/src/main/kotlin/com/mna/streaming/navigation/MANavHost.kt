@@ -55,7 +55,7 @@ import com.mna.streaming.ui.theme.MARed
 import com.mna.streaming.ui.theme.MASurface
 import com.mna.streaming.ui.theme.MATextSecondary
 
-// ── Route definitions ─────────────────────────────────────────────────────────
+// â”€â”€ Route definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 sealed class Screen(val route: String) {
     object Login       : Screen("login")
@@ -76,7 +76,7 @@ sealed class Screen(val route: String) {
     }
 }
 
-// ── Bottom nav tab model ──────────────────────────────────────────────────────
+// â”€â”€ Bottom nav tab model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private enum class MainTab(
     val label: String,
@@ -87,7 +87,7 @@ private enum class MainTab(
     Anime ("Anime",  Icons.Filled.PlayCircle,   Icons.Outlined.PlayCircle)
 }
 
-// ── Root nav host ─────────────────────────────────────────────────────────────
+// â”€â”€ Root nav host â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * @param pendingDeepLink Optional notification deep link extracted from the launching Intent.
@@ -95,12 +95,18 @@ private enum class MainTab(
  *   Processed exactly once after the user is confirmed to be authenticated.
  */
 @Composable
-fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
+fun MANavHost(
+    authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory),
+    pendingDeepLink: Pair<String, String>? = null
+) {
     val navController = rememberNavController()
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
     val uiState by authViewModel.uiState.collectAsState()
 
-    // ── Auth-driven navigation ────────────────────────────────────────────────
+    val startDestination = remember {
+        if (uiState.currentUser != null) Screen.Main.route else Screen.Login.route
+    }
+
+    // â”€â”€ Auth-driven navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     LaunchedEffect(uiState.isSessionChecked, uiState.currentUser) {
         if (!uiState.isSessionChecked) return@LaunchedEffect
@@ -115,7 +121,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             }
         } else {
             val authRoutes = setOf(Screen.Login.route, Screen.Signup.route)
-            if (currentRoute !in authRoutes) {
+            if (currentRoute != null && currentRoute !in authRoutes) {
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0) { inclusive = true }
                 }
@@ -123,7 +129,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
         }
     }
 
-    // ── Notification deep-link handler ────────────────────────────────────────
+    // â”€â”€ Notification deep-link handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //
     // Fires once after both conditions are true:
     //   1. A pending deep link exists (app was launched by tapping a notification).
@@ -157,14 +163,14 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
         deepLinkConsumed = true
     }
 
-    // ── Nav graph ─────────────────────────────────────────────────────────────
+    // â”€â”€ Nav graph â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     NavHost(
         navController    = navController,
-        startDestination = Screen.Login.route
+        startDestination = startDestination
     ) {
 
-        // ── Login ─────────────────────────────────────────────────────────────
+        // â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(Screen.Login.route) {
             LoginScreen(
                 uiState            = uiState,
@@ -174,7 +180,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Signup ────────────────────────────────────────────────────────────
+        // â”€â”€ Signup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(Screen.Signup.route) {
             SignupScreen(
                 uiState           = uiState,
@@ -186,7 +192,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Main (bottom nav scaffold) ─────────────────────────────────────────
+        // â”€â”€ Main (bottom nav scaffold) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(Screen.Main.route) {
             MainScreen(
                 onMovieClick   = { movieId -> navController.navigate(Screen.Detail.createRoute(movieId)) },
@@ -197,7 +203,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Profile ───────────────────────────────────────────────────────────
+        // â”€â”€ Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(Screen.Profile.route) {
             ProfileScreen(
                 onSignOut    = { authViewModel.signOut() },
@@ -212,12 +218,12 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Admin panel ───────────────────────────────────────────────────────
+        // â”€â”€ Admin panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(Screen.Admin.route) {
             AdminNavHost(onExit = { navController.popBackStack() })
         }
 
-        // ── Search ────────────────────────────────────────────────────────────
+        // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(Screen.Search.route) {
             val searchViewModel: SearchViewModel = viewModel(factory = SearchViewModel.Factory)
             SearchScreen(
@@ -232,7 +238,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Movie detail ──────────────────────────────────────────────────────
+        // â”€â”€ Movie detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(
             route     = Screen.Detail.route,
             arguments = listOf(navArgument("movieId") { type = NavType.StringType })
@@ -245,7 +251,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Anime / web-series detail ─────────────────────────────────────────
+        // â”€â”€ Anime / web-series detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(
             route     = Screen.AnimeDetail.route,
             arguments = listOf(navArgument("animeId") { type = NavType.StringType })
@@ -258,7 +264,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
             )
         }
 
-        // ── Actor filmography ─────────────────────────────────────────────────
+        // â”€â”€ Actor filmography â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         composable(
             route     = Screen.ActorMovies.route,
             arguments = listOf(navArgument("actorName") { type = NavType.StringType })
@@ -274,7 +280,7 @@ fun MANavHost(pendingDeepLink: Pair<String, String>? = null) {
     }
 }
 
-// ── Main screen with bottom nav ───────────────────────────────────────────────
+// â”€â”€ Main screen with bottom nav â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun MainScreen(
@@ -295,7 +301,7 @@ private fun MainScreen(
             .fillMaxSize()
             .background(MADark)
     ) {
-        // ── Tab content — fills the full screen; pill floats over it ───────────
+        // â”€â”€ Tab content â€” fills the full screen; pill floats over it â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Movies tab
         AnimatedVisibility(
             visible = selectedTab == MainTab.Movies,
@@ -325,7 +331,7 @@ private fun MainScreen(
             )
         }
 
-        // ── Floating pill nav bar — compact, spring-driven for a tactile,
+        // â”€â”€ Floating pill nav bar â€” compact, spring-driven for a tactile,
         // "butter smooth" feel instead of the previous linear tween motion.
         Box(
             modifier = Modifier
