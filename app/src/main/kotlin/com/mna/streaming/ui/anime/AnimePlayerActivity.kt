@@ -247,38 +247,12 @@ private val AD_HOSTS = setOf(
 
 /**
  * JavaScript injected into every page once it finishes loading.
- *
- * Defence layers:
- *  1. Neutralise [window.open] â€” the primary popunder mechanism.
- *  2. Capture-phase click listener that cancels any anchor navigation to a
- *     domain other than the player's own origin.  Running in the capture
- *     phase means our handler fires *before* any listener the embed page
- *     registered, so we can call stopImmediatePropagation() first.
+ * Neutralises window.open â€” popups and target=_blank links are handled by WebChromeClient.
  */
 private val JS_AD_BLOCK = """
 (function() {
     'use strict';
-
-    // 1. Neutralise window.open â€” blocks popunder / new-tab ads entirely.
     window.open = function() { return null; };
-
-    // 2. Block off-origin anchor navigations triggered by click overlays.
-    document.addEventListener('click', function(e) {
-        var el = e.target;
-        // Walk the DOM upward to find the nearest <a> ancestor.
-        while (el && el.nodeName !== 'A') { el = el.parentElement; }
-        if (!el || !el.href) return;
-        try {
-            if (el.href.startsWith('javascript:')) return;
-            var linkHost = new URL(el.href).hostname;
-            var pageHost = window.location.hostname;
-            // Allow same origin and subdomains; block everything else.
-            if (linkHost !== pageHost && !linkHost.endsWith('.' + pageHost)) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-            }
-        } catch (err) { /* malformed URL â€” ignore */ }
-    }, true /* capture phase */);
 })();
 """.trimIndent()
 
@@ -316,7 +290,7 @@ private fun EmbedWebView(url: String) {
                     displayZoomControls              = false
                     javaScriptCanOpenWindowsAutomatically = false
                     setSupportMultipleWindows(true)
-                    userAgentString                  = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                    userAgentString                  = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
                 }
 
                 webChromeClient = object : WebChromeClient() {
@@ -360,15 +334,15 @@ private fun EmbedWebView(url: String) {
                 webViewClient = object : WebViewClient() {
 
                     // â”€â”€ Navigation redirect blocker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                    // Allows iframe sources (isForMainFrame = false) and valid
-                    // video hosts while blocking ad networks and deep-link schemes.
                     override fun shouldOverrideUrlLoading(
                         view: WebView?,
                         request: WebResourceRequest?
                     ): Boolean {
                         val uri    = request?.url ?: return false
-                        val scheme = uri.scheme ?: return false
-                        if (scheme != "http" && scheme != "https") return true
+                        val scheme = uri.scheme?.lowercase() ?: return false
+                        if (scheme != "http" && scheme != "https" && scheme != "blob" && scheme != "about" && scheme != "data") {
+                            return true // block deep-link schemes
+                        }
                         val host   = uri.host?.lowercase() ?: return false
                         val isAd   = AD_HOSTS.any { blocked -> host == blocked || host.endsWith(".$blocked") }
                         if (isAd) return true
@@ -384,8 +358,10 @@ private fun EmbedWebView(url: String) {
                         if (url == null) return false
                         return try {
                             val uri    = Uri.parse(url)
-                            val scheme = uri.scheme ?: return false
-                            if (scheme != "http" && scheme != "https") return true
+                            val scheme = uri.scheme?.lowercase() ?: return false
+                            if (scheme != "http" && scheme != "https" && scheme != "blob" && scheme != "about" && scheme != "data") {
+                                return true
+                            }
                             val host   = uri.host?.lowercase() ?: return false
                             AD_HOSTS.any { blocked -> host == blocked || host.endsWith(".$blocked") }
                         } catch (e: Exception) {
@@ -417,7 +393,26 @@ private fun EmbedWebView(url: String) {
                     }
                 }
 
-                loadUrl(url)
+                val safeUrl = url.replace("\"", "&quot;")
+                val iframeHtml = """
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                        <style>
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
+                            html, body { width: 100%; height: 100%; background-color: #000; overflow: hidden; }
+                            iframe { width: 100%; height: 100%; border: none; outline: none; }
+                        </style>
+                    </head>
+                    <body>
+                        <iframe src="$safeUrl" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope" allowfullscreen></iframe>
+                    </body>
+                    </html>
+                """.trimIndent()
+
+                loadDataWithBaseURL(url, iframeHtml, "text/html", "utf-8", null)
             }
         },
         modifier = Modifier.fillMaxSize()
