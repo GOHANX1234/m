@@ -12,8 +12,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,12 +22,20 @@ import androidx.compose.material.icons.outlined.LocalMovies
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -298,7 +304,8 @@ private fun MainScreen(
     onProfileClick: () -> Unit,
     onActorClick:   (String) -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(MainTab.Movies) }
+    var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Movies.name) }
+    val selectedTab = MainTab.valueOf(selectedTabName)
 
     // Keep ViewModel instances alive across tab switches
     val homeViewModel:  HomeViewModel  = viewModel(factory = HomeViewModel.Factory)
@@ -343,13 +350,13 @@ private fun MainScreen(
         // "butter smooth" feel instead of the previous linear tween motion.
         LiquidMainNav(
             selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
+            onTabSelected = { selectedTabName = it.name },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
 
-/** Floating glass navigation with a long-press-to-drag liquid indicator. */
+/** Compact floating glass navigation with a press-and-drag liquid indicator. */
 @Composable
 private fun LiquidMainNav(
     selectedTab: MainTab,
@@ -361,41 +368,46 @@ private fun LiquidMainNav(
     val density = LocalDensity.current
     val settledIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
     var dragPosition by remember { mutableFloatStateOf(settledIndex.toFloat()) }
-    var isDragging by remember { mutableStateOf(false) }
+    var isPressed by remember { mutableStateOf(false) }
     val position by animateFloatAsState(
-        targetValue = if (isDragging) dragPosition else settledIndex.toFloat(),
+        targetValue = if (isPressed) dragPosition else settledIndex.toFloat(),
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
         label = "liquidNavPosition"
+    )
+    val containerScale by animateFloatAsState(
+        targetValue = if (isPressed) 1.045f else 1f,
+        animationSpec = spring(dampingRatio = 0.68f, stiffness = 560f),
+        label = "liquidNavPressScale"
     )
 
     BoxWithConstraints(
         modifier = modifier
             .navigationBarsPadding()
             .padding(bottom = 14.dp)
-            .width(204.dp)
-            .height(64.dp)
+            .width(184.dp)
+            .height(56.dp)
             .pointerInput(tabs) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    val longPress = awaitLongPressOrCancellation(down.id)
-
-                    if (longPress == null) {
-                        val x = down.position.x / size.width
-                        onTabSelected(tabs[(x * tabs.size).toInt().coerceIn(tabs.indices)])
-                        return@awaitEachGesture
-                    }
-
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    isDragging = true
-                    dragPosition = position
-                    drag(longPress.id) { change ->
-                        val fraction = (change.position.x / size.width * tabs.size - 0.5f)
-                            .coerceIn(0f, (tabs.size - 1).toFloat())
-                        dragPosition = fraction
-                        change.consume()
+                    isPressed = true
+                    dragPosition = (down.position.x / size.width * tabs.size - 0.5f)
+                        .coerceIn(0f, (tabs.size - 1).toFloat())
+                    var hasMoved = false
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull() ?: break
+                        if (change.positionChange() != androidx.compose.ui.geometry.Offset.Zero) {
+                            if (!hasMoved) {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                hasMoved = true
+                            }
+                            dragPosition = (change.position.x / size.width * tabs.size - 0.5f)
+                                .coerceIn(0f, (tabs.size - 1).toFloat())
+                            change.consume()
+                        }
+                        if (!change.pressed) break
                     }
                     val target = dragPosition.roundToInt().coerceIn(tabs.indices)
-                    isDragging = false
+                    isPressed = false
                     onTabSelected(tabs[target])
                 }
             }
@@ -403,22 +415,38 @@ private fun LiquidMainNav(
         val cellWidth = (constraints.maxWidth - with(density) { 10.dp.roundToPx() })
             .toFloat() / tabs.size
         val x = position * cellWidth
-        val stretch = 1f + (position - position.roundToInt()).absoluteValue * 0.10f
+        val travel = (position - position.roundToInt()).absoluteValue
+        val stretch = 1f + travel * 0.16f
+        val squash = 1f - travel * 0.06f
 
         Surface(
             shape = RoundedCornerShape(32.dp),
             color = MASurface.copy(alpha = 0.72f),
             tonalElevation = 4.dp,
-            modifier = Modifier.fillMaxSize().shadow(12.dp, RoundedCornerShape(32.dp),
-                ambientColor = Color.Black.copy(alpha = 0.28f), spotColor = Color.Black.copy(alpha = 0.35f))
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = containerScale
+                    scaleY = containerScale
+                }
+                .shadow(
+                    12.dp,
+                    RoundedCornerShape(32.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.28f),
+                    spotColor = Color.Black.copy(alpha = 0.35f)
+                )
         ) {
             Box(Modifier.fillMaxSize().padding(5.dp)) {
                 Box(
                     Modifier
                         .offset { IntOffset(x.roundToInt(), 0) }
-                        .width(94.dp)
+                        .width(84.dp)
                         .fillMaxHeight()
-                        .graphicsLayer { scaleX = stretch; alpha = 0.96f }
+                        .graphicsLayer {
+                            scaleX = stretch
+                            scaleY = if (isPressed) squash * 1.035f else squash
+                            alpha = 0.96f
+                        }
                         .background(MARed.copy(alpha = 0.18f), RoundedCornerShape(27.dp))
                 )
                 Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
@@ -431,14 +459,25 @@ private fun LiquidMainNav(
                             label = "liquidNavIcon$index"
                         )
                         Box(
-                            Modifier.weight(1f).fillMaxHeight(),
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .semantics {
+                                    role = Role.Tab
+                                    selected = tab == selectedTab
+                                    contentDescription = tab.label
+                                    onClick {
+                                        onTabSelected(tab)
+                                        true
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (active) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.label,
+                                contentDescription = null,
                                 tint = if (active) MARed else MATextSecondary,
-                                modifier = Modifier.size(21.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+                                modifier = Modifier.size(20.dp).graphicsLayer { scaleX = scale; scaleY = scale }
                             )
                         }
                     }
