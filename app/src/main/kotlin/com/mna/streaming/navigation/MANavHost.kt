@@ -2,7 +2,6 @@ package com.mna.streaming.navigation
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -30,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -361,15 +359,14 @@ private fun LiquidMainNav(
     val tabs = MainTab.entries
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
-    val animationScope = rememberCoroutineScope()
     val settledIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
-    val position = remember { Animatable(settledIndex.toFloat()) }
-    LaunchedEffect(settledIndex) {
-        position.animateTo(
-            settledIndex.toFloat(),
-            spring(dampingRatio = 0.78f, stiffness = 520f)
-        )
-    }
+    var dragPosition by remember { mutableFloatStateOf(settledIndex.toFloat()) }
+    var isDragging by remember { mutableStateOf(false) }
+    val position by animateFloatAsState(
+        targetValue = if (isDragging) dragPosition else settledIndex.toFloat(),
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+        label = "liquidNavPosition"
+    )
 
     BoxWithConstraints(
         modifier = modifier
@@ -377,7 +374,7 @@ private fun LiquidMainNav(
             .padding(bottom = 14.dp)
             .width(204.dp)
             .height(64.dp)
-            .pointerInput(Unit) {
+            .pointerInput(tabs) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val longPress = awaitLongPressOrCancellation(down.id)
@@ -389,28 +386,24 @@ private fun LiquidMainNav(
                     }
 
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    position.stop()
+                    isDragging = true
+                    dragPosition = position
                     drag(longPress.id) { change ->
                         val fraction = (change.position.x / size.width * tabs.size - 0.5f)
                             .coerceIn(0f, (tabs.size - 1).toFloat())
-                        launch { position.snapTo(fraction) }
+                        dragPosition = fraction
                         change.consume()
                     }
-                    val target = position.value.roundToInt().coerceIn(tabs.indices)
+                    val target = dragPosition.roundToInt().coerceIn(tabs.indices)
+                    isDragging = false
                     onTabSelected(tabs[target])
-                    animationScope.launch {
-                        position.animateTo(
-                            target.toFloat(),
-                            spring(dampingRatio = 0.78f, stiffness = 520f)
-                        )
-                    }
                 }
             }
     ) {
         val cellWidth = (constraints.maxWidth - with(density) { 10.dp.roundToPx() })
             .toFloat() / tabs.size
-        val x = position.value * cellWidth
-        val stretch = 1f + (position.value - position.value.roundToInt()).absoluteValue * 0.10f
+        val x = position * cellWidth
+        val stretch = 1f + (position - position.roundToInt()).absoluteValue * 0.10f
 
         Surface(
             shape = RoundedCornerShape(32.dp),
@@ -430,7 +423,7 @@ private fun LiquidMainNav(
                 )
                 Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                     tabs.forEachIndexed { index, tab ->
-                        val distance = (position.value - index).absoluteValue
+                        val distance = (position - index).absoluteValue
                         val active = distance < 0.55f
                         val scale by animateFloatAsState(
                             targetValue = if (active) 1f else 0.88f,
