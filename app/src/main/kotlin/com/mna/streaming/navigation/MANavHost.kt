@@ -2,17 +2,20 @@ package com.mna.streaming.navigation
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,11 +28,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -54,6 +62,8 @@ import com.mna.streaming.ui.theme.MADark
 import com.mna.streaming.ui.theme.MARed
 import com.mna.streaming.ui.theme.MASurface
 import com.mna.streaming.ui.theme.MATextSecondary
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 // â”€â”€ Route definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -333,80 +343,110 @@ private fun MainScreen(
 
         // â”€â”€ Floating pill nav bar â€” compact, spring-driven for a tactile,
         // "butter smooth" feel instead of the previous linear tween motion.
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 14.dp)
+        LiquidMainNav(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
+
+/** Floating glass navigation with a long-press-to-drag liquid indicator. */
+@Composable
+private fun LiquidMainNav(
+    selectedTab: MainTab,
+    onTabSelected: (MainTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tabs = MainTab.entries
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val animationScope = rememberCoroutineScope()
+    val settledIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
+    val position = remember { Animatable(settledIndex.toFloat()) }
+    LaunchedEffect(settledIndex) {
+        position.animateTo(
+            settledIndex.toFloat(),
+            spring(dampingRatio = 0.78f, stiffness = 520f)
+        )
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .navigationBarsPadding()
+            .padding(bottom = 14.dp)
+            .width(204.dp)
+            .height(64.dp)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val longPress = awaitLongPressOrCancellation(down.id)
+
+                    if (longPress == null) {
+                        val x = down.position.x / size.width
+                        onTabSelected(tabs[(x * tabs.size).toInt().coerceIn(tabs.indices)])
+                        return@awaitEachGesture
+                    }
+
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    position.stop()
+                    drag(longPress.id) { change ->
+                        val fraction = (change.position.x / size.width * tabs.size - 0.5f)
+                            .coerceIn(0f, (tabs.size - 1).toFloat())
+                        launch { position.snapTo(fraction) }
+                        change.consume()
+                    }
+                    val target = position.value.roundToInt().coerceIn(tabs.indices)
+                    onTabSelected(tabs[target])
+                    animationScope.launch {
+                        position.animateTo(
+                            target.toFloat(),
+                            spring(dampingRatio = 0.78f, stiffness = 520f)
+                        )
+                    }
+                }
+            }
+    ) {
+        val cellWidth = (constraints.maxWidth - with(density) { 10.dp.roundToPx() })
+            .toFloat() / tabs.size
+        val x = position.value * cellWidth
+        val stretch = 1f + (position.value - position.value.roundToInt()).absoluteValue * 0.10f
+
+        Surface(
+            shape = RoundedCornerShape(32.dp),
+            color = MASurface.copy(alpha = 0.72f),
+            tonalElevation = 4.dp,
+            modifier = Modifier.fillMaxSize().shadow(12.dp, RoundedCornerShape(32.dp),
+                ambientColor = Color.Black.copy(alpha = 0.28f), spotColor = Color.Black.copy(alpha = 0.35f))
         ) {
-            Surface(
-                shape    = RoundedCornerShape(50),
-                color    = MASurface.copy(alpha = 0.94f),
-                modifier = Modifier.shadow(
-                    elevation    = 14.dp,
-                    shape        = RoundedCornerShape(50),
-                    ambientColor = MARed.copy(alpha = 0.10f),
-                    spotColor    = MARed.copy(alpha = 0.18f)
+            Box(Modifier.fillMaxSize().padding(5.dp)) {
+                Box(
+                    Modifier
+                        .offset { IntOffset(x.roundToInt(), 0) }
+                        .width(94.dp)
+                        .fillMaxHeight()
+                        .graphicsLayer { scaleX = stretch; alpha = 0.96f }
+                        .background(MARed.copy(alpha = 0.18f), RoundedCornerShape(27.dp))
                 )
-            ) {
-                Row(
-                    modifier              = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    MainTab.entries.forEach { tab ->
-                        val selected = selectedTab == tab
-                        val pillColor by animateColorAsState(
-                            targetValue = if (selected) MARed.copy(alpha = 0.16f)
-                                          else          androidx.compose.ui.graphics.Color.Transparent,
-                            animationSpec = spring(dampingRatio = 0.8f, stiffness = 380f),
-                            label = "navPillColor"
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    tabs.forEachIndexed { index, tab ->
+                        val distance = (position.value - index).absoluteValue
+                        val active = distance < 0.55f
+                        val scale by animateFloatAsState(
+                            targetValue = if (active) 1f else 0.88f,
+                            animationSpec = spring(dampingRatio = 0.72f, stiffness = 520f),
+                            label = "liquidNavIcon$index"
                         )
-                        val iconScale by animateFloatAsState(
-                            targetValue   = if (selected) 1f else 0.9f,
-                            animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
-                            label         = "navIconScale"
-                        )
-                        Surface(
-                            onClick = { selectedTab = tab },
-                            shape   = RoundedCornerShape(50),
-                            color   = pillColor
+                        Box(
+                            Modifier.weight(1f).fillMaxHeight(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                modifier              = Modifier.padding(
-                                    horizontal = if (selected) 15.dp else 11.dp,
-                                    vertical   = 8.dp
-                                ),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment     = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector        = if (selected) tab.selectedIcon
-                                                        else           tab.unselectedIcon,
-                                    contentDescription = tab.label,
-                                    tint               = if (selected) MARed else MATextSecondary,
-                                    modifier           = Modifier
-                                        .size(19.dp)
-                                        .graphicsLayer {
-                                            scaleX = iconScale
-                                            scaleY = iconScale
-                                        }
-                                )
-                                AnimatedVisibility(
-                                    visible = selected,
-                                    enter   = fadeIn(spring(stiffness = 300f)) +
-                                              expandHorizontally(spring(dampingRatio = 0.75f, stiffness = 350f)),
-                                    exit    = fadeOut(tween(120)) +
-                                              shrinkHorizontally(tween(120))
-                                ) {
-                                    Text(
-                                        text       = tab.label,
-                                        color      = MARed,
-                                        fontSize   = 12.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
+                            Icon(
+                                imageVector = if (active) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = tab.label,
+                                tint = if (active) MARed else MATextSecondary,
+                                modifier = Modifier.size(21.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+                            )
                         }
                     }
                 }
