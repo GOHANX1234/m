@@ -11,12 +11,12 @@ import androidx.compose.ui.unit.dp
  * grab-bag of slightly different roundnesses.
  */
 object MARadius {
-    val xs = 4.dp
-    val sm = 8.dp
-    val md = 12.dp
-    val lg = 16.dp
-    val xl = 20.dp
-    val xxl = 28.dp
+    val xs = 8.dp
+    val sm = 12.dp
+    val md = 16.dp
+    val lg = 20.dp
+    val xl = 26.dp
+    val xxl = 34.dp
 }
 
 /** Wired into [MATheme] so Material3 components without an explicit shape inherit these. */

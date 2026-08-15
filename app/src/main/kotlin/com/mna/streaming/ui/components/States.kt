@@ -55,17 +55,16 @@ fun MAEmptyState(
         modifier = modifier.padding(horizontal = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .background(MACard, CircleShape),
-            contentAlignment = Alignment.Center
+        GlassSurface(
+            modifier = Modifier.size(72.dp),
+            shape = CircleShape,
+            level = GlassLevel.Regular
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MATextSecondary.copy(alpha = 0.6f),
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(32.dp).align(Alignment.Center)
             )
         }
         Spacer(Modifier.height(16.dp))

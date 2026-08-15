@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.VisualTransformation
 import com.mna.streaming.ui.theme.MABorderSubtle
 import com.mna.streaming.ui.theme.MACard
+import com.mna.streaming.ui.theme.MAGlass
 import com.mna.streaming.ui.theme.MARadius
 import com.mna.streaming.ui.theme.MARed
 import com.mna.streaming.ui.theme.MATextSecondary
@@ -55,7 +56,7 @@ fun AuthTextField(
             else -> null
         },
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor    = MARed,
+            focusedBorderColor    = MARed.copy(alpha = 0.85f),
             unfocusedBorderColor  = MABorderSubtle,
             errorBorderColor      = MaterialTheme.colorScheme.error,
             focusedLabelColor     = MARed,
@@ -63,9 +64,9 @@ fun AuthTextField(
             cursorColor           = MARed,
             focusedTextColor      = Color.White,
             unfocusedTextColor    = Color.White,
-            focusedContainerColor   = MACard.copy(alpha = 0.6f),
-            unfocusedContainerColor = MACard.copy(alpha = 0.4f),
-            errorContainerColor     = MACard.copy(alpha = 0.5f)
+            focusedContainerColor   = MAGlass.copy(alpha = 0.85f),
+            unfocusedContainerColor = MAGlass.copy(alpha = 0.55f),
+            errorContainerColor     = MARed.copy(alpha = 0.10f)
         ),
         modifier = modifier.fillMaxWidth()
     )

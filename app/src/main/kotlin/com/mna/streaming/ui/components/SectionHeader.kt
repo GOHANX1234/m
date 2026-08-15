@@ -48,8 +48,8 @@ fun SectionHeader(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
             )
             if (subtitle != null) {
                 Text(
