@@ -19,19 +19,10 @@ val MAGold = Color(0xFFFFD700)
 val MAGoldDark = Color(0xFFC9A600)
 
 // ── Surfaces — elevation scale, darkest to lightest ─────────────────────────
-val MADark = Color(0xFF050507)          // deep canvas behind all translucent layers
-val MASurface = Color(0xB3121318)       // low glass layer
-val MACard = Color(0x991B1B22)          // standard glass fallback
-val MACardElevated = Color(0xCC25252E)  // modal / sheet glass fallback
-
-// Liquid Glass material tokens. These intentionally remain neutral so callers can
-// feed poster-derived colors through `tint` without repainting the whole surface.
-val MAGlassLow = Color(0x141FFFFFFF)
-val MAGlass = Color(0x241FFFFFFF)
-val MAGlassHigh = Color(0x381FFFFFFF)
-val MAGlassHighlight = Color(0x70FFFFFF)
-val MAGlassShadow = Color(0xB3000000)
-val MARedGlow = Color(0x80FF2333)
+val MADark = Color(0xFF0A0A0F)          // app background (level 0)
+val MASurface = Color(0xFF141414)       // sunken sections, chip rails (level 1)
+val MACard = Color(0xFF1E1E24)          // cards, rows, list items (level 2)
+val MACardElevated = Color(0xFF262631)  // sheets, dialogs, popovers, menus (level 3)
 
 // ── Text ─────────────────────────────────────────────────────────────────
 val MATextPrimary = Color(0xFFFFFFFF)

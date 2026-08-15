@@ -33,16 +33,17 @@ fun RatingBadge(
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
-    GlassCapsule(
-        tint = MAGold,
-        modifier = modifier,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = if (compact) 6.dp else 8.dp,
-            vertical = if (compact) 3.dp else 4.dp
-        )
+    Surface(
+        shape = RoundedCornerShape(MARadius.xs),
+        color = Color.Black.copy(alpha = 0.68f),
+        modifier = modifier
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(
+                horizontal = if (compact) 5.dp else 7.dp,
+                vertical = if (compact) 2.dp else 3.dp
+            )
         ) {
             Icon(
                 imageVector = Icons.Filled.Star,
@@ -71,10 +72,10 @@ fun LabelBadge(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    GlassCapsule(
-        tint = color,
-        modifier = modifier,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 3.dp)
+    Surface(
+        shape = RoundedCornerShape(MARadius.xs),
+        color = color.copy(alpha = 0.85f),
+        modifier = modifier
     ) {
         Text(
             text = text,
@@ -82,7 +83,7 @@ fun LabelBadge(
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.6.sp,
-            modifier = Modifier
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }
@@ -97,17 +98,18 @@ fun StatusBadge(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    GlassCapsule(
-        tint = color,
-        modifier = modifier,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 9.dp, vertical = 5.dp)
+    Surface(
+        shape = RoundedCornerShape(MARadius.xs),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.35f)),
+        modifier = modifier
     ) {
         Text(
             text = label,
             color = color,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
 }

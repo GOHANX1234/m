@@ -1,9 +1,16 @@
 package com.mna.streaming.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import com.mna.streaming.ui.theme.MABorderStrong
 import com.mna.streaming.ui.theme.MARadius
 import com.mna.streaming.ui.theme.MARed
-import com.mna.streaming.ui.theme.pressScaleClickable
 
 /**
  * The app's single filled call-to-action style (Play, Submit, Update Now,
@@ -34,32 +40,30 @@ fun MAPrimaryButton(
     height: Dp = 52.dp,
     containerColor: Color = MARed
 ) {
-    GlassSurface(
-        modifier = modifier
-            .height(height)
-            .pressScaleClickable(
-                pressedScale = 0.94f,
-                enabled = enabled && !isLoading,
-                onClick = onClick
-            ),
-        shape = RoundedCornerShape(MARadius.md),
-        level = GlassLevel.Elevated,
-        tint = if (enabled) containerColor else containerColor.copy(alpha = 0.25f)
+    Button(
+        onClick = onClick,
+        enabled = enabled && !isLoading,
+        modifier = modifier.height(height),
+        shape = RoundedCornerShape(MARadius.sm),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = Color.White,
+            disabledContainerColor = containerColor.copy(alpha = 0.35f),
+            disabledContentColor = Color.White.copy(alpha = 0.6f)
+        )
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
-                if (icon != null) {
-                    Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(text = text, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = Color.White,
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp
+            )
+        } else {
+            if (icon != null) {
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
             }
+            Text(text = text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
         }
     }
 }
@@ -75,23 +79,18 @@ fun MASecondaryButton(
     contentColor: Color = Color.White,
     height: Dp = 52.dp
 ) {
-    GlassSurface(
-        modifier = modifier
-            .height(height)
-            .pressScaleClickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(MARadius.md),
-        level = GlassLevel.Regular
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(height),
+        shape = RoundedCornerShape(MARadius.sm),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor),
+        border = BorderStroke(1.dp, MABorderStrong)
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (icon != null) {
-                Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(text = text, color = contentColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        if (icon != null) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
         }
+        Text(text = text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
     }
 }

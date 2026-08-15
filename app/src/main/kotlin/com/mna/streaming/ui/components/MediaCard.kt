@@ -1,7 +1,6 @@
 package com.mna.streaming.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -67,10 +65,8 @@ fun MediaPosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
-                .shadow(14.dp, RoundedCornerShape(MARadius.md), ambientColor = Color.Black, spotColor = Color.Black)
-                .clip(RoundedCornerShape(MARadius.md))
+                .clip(RoundedCornerShape(MARadius.sm))
                 .background(MACard)
-                .border(0.75.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(MARadius.md))
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
@@ -158,7 +154,7 @@ fun MediaCardSkeleton(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
-                .clip(RoundedCornerShape(MARadius.md))
+                .clip(RoundedCornerShape(MARadius.sm))
                 .shimmer()
         )
         if (showTitle) {

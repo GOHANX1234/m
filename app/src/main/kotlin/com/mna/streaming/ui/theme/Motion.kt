@@ -34,8 +34,6 @@ object MAMotion {
     const val slow = 450
     val standardEasing = FastOutSlowInEasing
     val enterEasing = LinearOutSlowInEasing
-    val liquidSpring = spring<Float>(dampingRatio = 0.72f, stiffness = 380f)
-    val softSpring = spring<Float>(dampingRatio = 0.82f, stiffness = 260f)
 }
 
 /**
@@ -54,7 +52,7 @@ fun Modifier.pressScaleClickable(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) pressedScale else 1f,
-        animationSpec = MAMotion.liquidSpring,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 450f),
         label = "pressScale"
     )
     this
@@ -78,8 +76,8 @@ fun Modifier.pressScaleClickable(
  */
 @Composable
 fun rememberShimmerBrush(
-    baseColor: Color = MAGlassLow,
-    highlightColor: Color = MAGlassHigh
+    baseColor: Color = MACard,
+    highlightColor: Color = MACardElevated
 ): Brush {
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translate by transition.animateFloat(
@@ -100,5 +98,5 @@ fun rememberShimmerBrush(
 
 /** Convenience modifier: fills the element with an animated shimmer brush. */
 @Composable
-fun Modifier.shimmer(baseColor: Color = MAGlassLow, highlightColor: Color = MAGlassHigh): Modifier =
+fun Modifier.shimmer(baseColor: Color = MACard, highlightColor: Color = MACardElevated): Modifier =
     this.background(rememberShimmerBrush(baseColor, highlightColor))

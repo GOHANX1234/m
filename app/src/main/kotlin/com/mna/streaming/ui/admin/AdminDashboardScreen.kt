@@ -21,9 +21,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mna.streaming.ui.components.GlassCapsule
-import com.mna.streaming.ui.components.GlassLevel
-import com.mna.streaming.ui.components.GlassSurface
 import com.mna.streaming.ui.theme.*
 
 // ── Dashboard tile model ──────────────────────────────────────────────────────
@@ -82,14 +79,17 @@ fun AdminDashboardScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.width(8.dp))
-                GlassCapsule(tint = MARed) {
+                Surface(
+                    shape  = RoundedCornerShape(4.dp),
+                    color  = MARed.copy(alpha = 0.15f)
+                ) {
                     Text(
                         text          = "ADMIN",
                         color         = MARed,
                         fontSize      = 9.sp,
                         fontWeight    = FontWeight.Bold,
                         letterSpacing = 1.sp,
-                        modifier      = Modifier.align(Alignment.Center)
+                        modifier      = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                     )
                 }
             }
@@ -104,14 +104,19 @@ fun AdminDashboardScreen(
             Spacer(Modifier.height(8.dp))
 
             // Hero gradient banner
-            GlassSurface(
-                modifier = Modifier.fillMaxWidth().height(104.dp),
-                shape = RoundedCornerShape(MARadius.xl),
-                level = GlassLevel.Elevated,
-                tint = MARed,
-                contentPadding = PaddingValues(horizontal = 22.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(MARed.copy(alpha = 0.80f), Color(0xFF8B0000).copy(alpha = 0.60f))
+                        )
+                    ),
+                contentAlignment = Alignment.CenterStart
             ) {
-                Column(modifier = Modifier.align(Alignment.CenterStart)) {
+                Column(modifier = Modifier.padding(start = 20.dp)) {
                     Text(
                         text       = "Content Manager",
                         color      = Color.White,
@@ -164,14 +169,13 @@ fun AdminDashboardScreen(
 
 @Composable
 private fun DashboardTile(tile: DashTile) {
-    GlassSurface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(110.dp)
-            .pressScaleClickable(onClick = tile.onClick),
-        shape  = RoundedCornerShape(MARadius.lg),
-        level = GlassLevel.Regular,
-        tint = tile.accentColor.copy(alpha = 0.35f)
+            .clickable(onClick = tile.onClick),
+        shape  = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MACard)
     ) {
         Column(
             modifier            = Modifier

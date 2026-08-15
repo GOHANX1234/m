@@ -167,20 +167,7 @@ fun DetailScreen(
                             modifier = Modifier
                                 .offset(y = (-20).dp)
                                 .clip(RoundedCornerShape(topStart = MARadius.xl, topEnd = MARadius.xl))
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            Color.White.copy(alpha = 0.16f),
-                                            MARed.copy(alpha = 0.06f),
-                                            MADark.copy(alpha = 0.94f)
-                                        )
-                                    )
-                                )
-                                .border(
-                                    0.75.dp,
-                                    Color.White.copy(alpha = 0.25f),
-                                    RoundedCornerShape(topStart = MARadius.xl, topEnd = MARadius.xl)
-                                )
+                                .background(MADark)
                                 .padding(horizontal = MASpacing.lg)
                                 .padding(top = MASpacing.lg)
                         ) {
